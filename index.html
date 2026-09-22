@@ -1,0 +1,1887 @@
+<!-- Libby Li — Photography Portfolio -->
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Libby Li — Travel Photography & Photojournalism</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=Work+Sans:wght@300;400;500&display=swap"
+  rel="stylesheet"
+/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          // Two colours only. Everything else is a blend of the two, so the
+          // whole palette sits on a single ink -> cream line with no hue of
+          // its own — the tints below are that line at 5%, 78% and 71% ink.
+          cream: "#F6F2E8",
+          "cream-2": "#EBE7DD",
+          ink: "#1B1815",
+          "ink-mid": "#4B4843",
+          "ink-soft": "#5B5752",
+        },
+        fontFamily: {
+          display: ['"Fraunces"', "serif"],
+          name: ['"EB Garamond"', "Garamond", "Georgia", "serif"],
+          mono: ['"IBM Plex Mono"', "monospace"],
+          body: ['"Work Sans"', "sans-serif"],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  :root {
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --line: rgba(27, 24, 21, 0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Every view is exactly one screen. Nothing scrolls past its edges — no
+     page scroll, and no rubber-band overscroll at the boundaries either. */
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body {
+    background: #F6F2E8;
+    color: #1B1815;
+  }
+
+  /* ---------- Grain overlay ---------- */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* ---------- Top / bottom rules ---------- */
+  .rule-top, .rule-bottom {
+    position: fixed;
+    left: 0; right: 0;
+    height: 2px;
+    background: #1B1815;
+    z-index: 9999;
+  }
+  .rule-top { top: 0; }
+  .rule-bottom { bottom: 0; }
+
+  /* ---------- Header ---------- */
+  .site-header {
+    transition: background-color 0.4s ease;
+  }
+
+  .nav-link {
+    position: relative;
+    padding-bottom: 3px;
+  }
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%; height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.4s var(--ease-spring);
+  }
+  .nav-link:hover::after,
+  .nav-link:focus-visible::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  /* ---------- Pills ---------- */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #F6F2E8;
+    transition: transform 0.35s var(--ease-spring),
+      box-shadow 0.35s var(--ease-spring),
+      border-color 0.35s var(--ease-spring),
+      background-color 0.35s var(--ease-spring);
+    box-shadow: 0 1px 2px rgba(27,24,21,0.05);
+  }
+  .pill:hover {
+    transform: translateY(-2px);
+    border-color: rgba(27,24,21,0.42);
+    box-shadow: 0 1px 2px rgba(27,24,21,0.06), 0 10px 24px -10px rgba(27,24,21,0.42);
+  }
+  .pill:active { transform: translateY(0px) scale(0.98); }
+  .pill:focus-visible {
+    outline: 2px solid #1B1815;
+    outline-offset: 2px;
+  }
+
+  /* ---------- Hero ---------- */
+  /* Hero elements converge on one beat: everything above centre drops in from
+     the top, everything below it rises from the bottom. No stagger — the
+     direction does the work, so they all land together. */
+  .hero-line {
+    display: block;
+    opacity: 0;
+    animation-duration: 1s;
+    animation-timing-function: var(--ease-spring);
+    animation-fill-mode: forwards;
+  }
+  .hero-line.from-top { animation-name: heroDropIn; }
+  .hero-line.from-bottom { animation-name: heroRiseIn; }
+  @keyframes heroDropIn {
+    from { opacity: 0; transform: translateY(-80px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes heroRiseIn {
+    from { opacity: 0; transform: translateY(80px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .float-slow {
+    animation: float 7s ease-in-out infinite;
+  }
+  .float-slow-rev {
+    animation: float 8s ease-in-out infinite reverse;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  /* ---------- Photo reveal ---------- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(26px);
+    transition: opacity 0.8s var(--ease-spring), transform 0.8s var(--ease-spring);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---------- Horizontal gallery (2D scatter field) ---------- */
+  /* Photos are absolutely placed across a wide, full-height track so they
+     fill the whole page vertically as well as horizontally — the track
+     scrolls sideways. */
+  .gallery-viewport {
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* The track is the only thing that moves; hitting either end stops dead
+       rather than bouncing the page or triggering a back-swipe. */
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    cursor: grab;
+    height: 100dvh;
+  }
+  .gallery-viewport::-webkit-scrollbar { display: none; }
+  .gallery-viewport.dragging { cursor: grabbing; }
+
+  .gallery-track {
+    position: relative;
+    height: 100%;
+    width: 170vw;
+  }
+  @media (max-width: 860px) { .gallery-track { width: 430vw; } }
+
+  .photo-card {
+    position: absolute;
+    cursor: pointer;
+  }
+
+  .scroll-cue {
+    position: absolute;
+    left: 12%;
+    top: 84%;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .back-pill {
+    position: fixed;
+    bottom: 1.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+  }
+  /* Keep the centered pill's hover/active lift from cancelling the centering. */
+  .back-pill:hover { transform: translateX(-50%) translateY(-2px); }
+  .back-pill:active { transform: translateX(-50%) scale(0.98); }
+
+  .photo-frame {
+    position: relative;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #EBE7DD;
+    box-shadow: 0 1px 2px rgba(27,24,21,0.06), 0 14px 30px -18px rgba(27,24,21,0.35);
+    transition: transform 0.55s var(--ease-spring), box-shadow 0.55s var(--ease-spring);
+  }
+  .photo-card:hover .photo-frame, .photo-card:focus-visible .photo-frame {
+    transform: translateY(-6px);
+    box-shadow: 0 4px 10px rgba(27,24,21,0.08), 0 28px 50px -20px rgba(27,24,21,0.45);
+  }
+  /* With the cursor magnifier running, scale is driven per-frame from JS.
+     Drop the transition so it doesn't lag the pointer, and drop the inner
+     image zoom so the photo doesn't get scaled twice. */
+  .magnify .photo-frame { transition: box-shadow 0.55s var(--ease-spring); }
+  .magnify .photo-card:hover img { transform: none; }
+  .photo-card img {
+    display: block;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s var(--ease-spring), filter 0.5s ease;
+    filter: saturate(0.94);
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+  .photo-card:hover img { transform: scale(1.06); filter: saturate(1.05); }
+
+  .card-count {
+    display: block;
+    margin-top: 0.4rem;
+    text-align: right;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    color: #5B5752;
+  }
+
+  /* ---------- Set-size badge ---------- */
+  /* The only signal, in the grid, that a card opens onto more than one
+     photo — inside .photo-frame (not the card) so it's pinned to the
+     visible image regardless of the frame's own aspect ratio. */
+  .set-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(27, 24, 21, 0.55);
+    backdrop-filter: blur(2px);
+    color: #F6F2E8;
+    font-size: 0.6rem;
+    letter-spacing: 0.02em;
+    line-height: 18px;
+    text-align: center;
+  }
+
+  /* ---------- Category dot ---------- */
+  .dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; }
+
+  /* ---------- Lightbox ---------- */
+  #lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9997;
+    background: rgba(27,24,21,0.94);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s var(--ease-spring);
+    backdrop-filter: blur(6px);
+  }
+  #lightbox.open { opacity: 1; pointer-events: auto; }
+  #lightbox img {
+    max-width: min(86vw, 1000px);
+    max-height: 78vh;
+    object-fit: contain;
+    box-shadow: 0 30px 80px -20px rgba(27,24,21,0.7);
+    opacity: 0;
+    transform: scale(0.97);
+    transition: opacity 0.45s var(--ease-spring), transform 0.45s var(--ease-spring);
+  }
+  #lightbox.open img { opacity: 1; transform: scale(1); }
+  .lb-btn {
+    transition: transform 0.3s var(--ease-spring), opacity 0.3s ease, border-color 0.3s ease;
+  }
+  .lb-btn:hover { transform: scale(1.08); border-color: rgba(246,242,232,0.6); }
+  .lb-btn:active { transform: scale(0.94); }
+  /* Cream, not ink — this one sits on the dark lightbox backdrop. */
+  .lb-btn:focus-visible { outline: 2px solid #F6F2E8; outline-offset: 2px; }
+
+  /* ---------- Mobile nav overlay ---------- */
+  #mobile-nav {
+    position: fixed; inset: 0; z-index: 9996;
+    background: #F6F2E8;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s var(--ease-spring);
+  }
+  #mobile-nav.open { opacity: 1; pointer-events: auto; }
+  #mobile-nav a {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.5s var(--ease-spring), transform 0.5s var(--ease-spring);
+  }
+  #mobile-nav.open a { opacity: 1; transform: translateY(0); }
+  #mobile-nav a:nth-of-type(1) { transition-delay: 0.05s; }
+  #mobile-nav a:nth-of-type(2) { transition-delay: 0.1s; }
+  #mobile-nav a:nth-of-type(3) { transition-delay: 0.15s; }
+  #mobile-nav a:nth-of-type(4) { transition-delay: 0.2s; }
+
+  ::selection { background: #1B1815; color: #F6F2E8; }
+
+  /* Baseline focus ring in ink. Without it the UA default paints a blue one —
+     the one colour on the site that isn't ink or cream. Elements with their
+     own focus treatment (pills, lightbox buttons, nav underline) override it. */
+  a:focus-visible,
+  button:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid #1B1815;
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* ---------- Custom ring cursor ---------- */
+  /* Only enabled for fine pointers; !important because plenty of elements set
+     their own cursor (grab, pointer, ...) that would otherwise win. */
+  .custom-cursor, .custom-cursor * { cursor: none !important; }
+
+  #cursor-ring {
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 10001;
+    pointer-events: none;
+    will-change: transform;
+    /* Blend lives on this element, not the inner span: a child's mix-blend-mode
+       is confined to its parent's stacking context, and the z-index here makes
+       one — so blending inside would composite against nothing. Inverting
+       against the backdrop keeps the ring legible on the cream field and on
+       the dark lightbox alike. */
+    mix-blend-mode: difference;
+  }
+  /* Inner element carries the look, so JS can own the outer transform
+     (position) without the two fighting over the same property. */
+  #cursor-ring span {
+    display: block;
+    width: 34px; height: 34px;
+    margin: -17px 0 0 -17px;
+    border: 1.5px solid #fff;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.35s var(--ease-spring),
+                transform 0.35s var(--ease-spring),
+                background-color 0.35s var(--ease-spring);
+  }
+  #cursor-ring.is-visible span { opacity: 1; transform: scale(1); }
+  /* Over anything clickable the outline floods solid — read through the
+     difference blend, that inverts whatever sits under it, so the filled disc
+     stays legible on the cream field and on a dark photo alike. */
+  #cursor-ring.over-target span { background: rgba(255, 255, 255, 1); }
+
+  /* Inside the lightbox the ring gives way to a label, since scrolling — not
+     clicking — is how you move through the set. Same outer element, same
+     position/easing already driven by JS; only which child is visible swaps. */
+  #cursor-ring .scroll-hint {
+    position: absolute;
+    top: 0; left: 0;
+    width: max-content;
+    margin: -10px 0 0 18px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #fff;
+    white-space: nowrap;
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity 0.35s var(--ease-spring), transform 0.35s var(--ease-spring);
+  }
+  #cursor-ring.lightbox-mode span { opacity: 0; transform: scale(0.4); }
+  #cursor-ring.lightbox-mode.is-visible .scroll-hint { opacity: 1; transform: scale(1); }
+
+  /* ---------- Views (home vs. individual galleries) ---------- */
+  /* Only hide inactive views — leave "active" display untouched so each
+     view's own utility classes (block, flex, ...) decide its layout. */
+  .view:not(.active) { display: none; }
+
+  /* ---------- Page transition: "through the letters" ---------- */
+  #transition-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #F6F2E8;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(1);
+  }
+  #transition-overlay.animating {
+    transition: opacity 1.05s cubic-bezier(0.76, 0, 0.24, 1),
+      transform 1.05s cubic-bezier(0.76, 0, 0.24, 1);
+  }
+  /* Gallery-to-gallery uses this plain cream flash instead of the wordmark
+     tunnel — there's no hero on screen to zoom through, and the scale/tunnel
+     motion only makes sense relative to it. The wordmark clone still lives
+     inside the overlay regardless, so it has to be hidden explicitly here or
+     it would flash into view along with the fade. */
+  #transition-overlay.plain-swap .to-line { visibility: hidden; }
+  /* Sizing mirrors the hero wordmark exactly — same steps as its Tailwind
+     classes (base 16vw, sm 9rem, md 11rem, lg 12.5rem). A clamp() here looked
+     equivalent but drifted between breakpoints, so the letters changed size at
+     the hand-off when the overlay settles onto the real hero. */
+  #transition-overlay .to-line {
+    display: block;
+    /* Full-width centred text, matching how the hero centres its wordmark.
+       Shrink-to-fit flex centring lands a few px off, because the negative
+       letter-spacing leaves trailing space inside the box. */
+    width: 100%;
+    text-align: center;
+    /* Must stay identical to the hero's font-name stack — the overlay settles
+       onto the real wordmark at the hand-off, so any metric difference shows
+       up as the letters jumping. */
+    font-family: "EB Garamond", Garamond, Georgia, serif;
+    font-size: 16vw;
+    line-height: 0.86;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: #1B1815;
+  }
+  #transition-overlay .to-line.to-italic {
+    font-style: italic;
+    font-weight: 400;
+    /* Colour inherited from .to-line — both rows are ink, like the hero's. */
+    /* em, so the two cap rows keep the same optical gap at every size —
+       matches the hero's -mt-[0.115em]. */
+    margin-top: -0.115em;
+  }
+  @media (min-width: 640px) {
+    #transition-overlay .to-line { font-size: 9rem; }
+  }
+  @media (min-width: 768px) { #transition-overlay .to-line { font-size: 11rem; } }
+  @media (min-width: 1024px) { #transition-overlay .to-line { font-size: 12.5rem; } }
+
+  /* ---------- Hero float layer ---------- */
+  /* Recent photos drifting behind the wordmark. Sits below the hero copy
+     (z-10 there vs. z-0 here) and clipped by #top's own overflow-hidden, so
+     drift and parallax can never push a card past the viewport edge. */
+  .hero-float-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .float-card {
+    position: absolute;
+    display: block;
+    width: clamp(64px, 7.5vw, 132px);
+    will-change: transform;
+    /* JS drives this directly each frame, like the cursor ring — a CSS
+       transition here would fight the per-frame lerp instead of smoothing it.
+       Hover/active feedback below lives on the .photo-frame child instead,
+       so it has its own transform to animate without a collision. */
+    pointer-events: auto;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .float-card .photo-frame {
+    position: relative;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(27,24,21,0.05), 0 18px 34px -20px rgba(27,24,21,0.4);
+    transition: transform 0.4s var(--ease-spring), box-shadow 0.4s var(--ease-spring);
+  }
+  .float-card:hover .photo-frame {
+    transform: scale(1.045);
+    box-shadow: 0 4px 10px rgba(27,24,21,0.1), 0 26px 46px -20px rgba(27,24,21,0.5);
+  }
+  .float-card:active .photo-frame { transform: scale(0.98); }
+  .float-card:hover .float-card-inner,
+  .float-card:focus-visible .float-card-inner {
+    opacity: 0.92;
+  }
+  /* Mobile only: height is capped here instead of left to the image's own
+     aspect ratio (the gallery cards' and desktop float cards' approach). A
+     tall portrait placeholder at mobile's narrower widths could otherwise
+     run past whatever text-free band its position was measured against —
+     worse on a short viewport than a tall one, which no single hand-placed
+     position can account for on its own. object-fit crops the image to fit.
+     Desktop has the vertical room to just let photos be their own shape. */
+  @media (max-width: 640px) {
+    .float-card .photo-frame { height: clamp(52px, 8vh, 128px); }
+  }
+  .float-card img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(0.92);
+  }
+  /* The autonomous drift lives on this inner wrapper so it composes cleanly
+     with the outer element's JS-driven parallax transform instead of
+     overwriting it. Duration/delay/amplitude are set per-card inline for a
+     scattered, unsynchronised feel. */
+  .float-card-inner {
+    animation-name: floatDrift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    opacity: 0.64;
+    transition: opacity 0.4s var(--ease-spring);
+  }
+  @keyframes floatDrift {
+    0%, 100% { transform: translate(0, 0) rotate(var(--fr, 1.4deg)); }
+    50% { transform: translate(var(--fx, 14px), var(--fy, -18px)) rotate(calc(var(--fr, 1.4deg) * -1)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .float-card-inner { animation: none; }
+  }
+
+  /* ---------- Flight layer ---------- */
+  /* Where a floating card lives while it flies into the gallery it belongs
+     to — above the transition overlay, so the photo stays visible through
+     the letters rushing past rather than disappearing when the view swaps. */
+  #flight-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    pointer-events: none;
+  }
+  .flight-card {
+    position: fixed;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(27,24,21,0.08), 0 28px 50px -20px rgba(27,24,21,0.45);
+  }
+  .flight-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+</style>
+
+<body class="font-body text-ink bg-cream">
+
+  <div class="grain"></div>
+  <div class="rule-top"></div>
+  <div class="rule-bottom"></div>
+
+  <!-- ================= CUSTOM CURSOR ================= -->
+  <div id="cursor-ring" aria-hidden="true">
+    <span></span>
+    <span class="scroll-hint">Scroll to discover</span>
+  </div>
+
+  <!-- ================= PAGE TRANSITION OVERLAY ================= -->
+  <div id="transition-overlay" aria-hidden="true">
+    <span class="to-line">Libby</span>
+    <span class="to-line to-italic">Li</span>
+  </div>
+
+  <!-- ================= FLOAT-TO-GALLERY FLIGHT LAYER ================= -->
+  <div id="flight-layer" aria-hidden="true"></div>
+
+  <!-- ================= HEADER ================= -->
+  <header id="site-header" class="site-header fixed top-2 left-0 right-0 z-[9999] px-5 sm:px-8 py-4">
+    <div class="max-w-[1400px] mx-auto flex items-center justify-between">
+      <a href="#home" class="font-mono text-xs sm:text-sm tracking-[0.18em] uppercase">Libby Li<span class="text-ink-soft">.</span></a>
+
+      <button id="menu-btn" class="pill md:hidden px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase" aria-label="Open menu" aria-expanded="false">
+        Menu
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MOBILE NAV ================= -->
+  <div id="mobile-nav">
+    <div class="h-full flex flex-col items-center justify-center gap-8">
+      <button id="menu-close" class="pill absolute top-6 right-6 px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase" aria-label="Close menu">Close</button>
+      <a href="#travel" class="font-display text-4xl text-ink-mid hover:text-ink transition-colors">Travel</a>
+      <a href="#personal" class="font-display text-4xl text-ink-mid hover:text-ink transition-colors">Personal</a>
+      <a href="#bruin" class="font-display text-4xl text-ink-mid hover:text-ink transition-colors">Daily Bruin</a>
+    </div>
+  </div>
+
+  <!-- ================= HOME VIEW ================= -->
+  <div class="view active" data-view="home">
+
+  <!-- ================= HERO ================= -->
+  <section id="top" class="relative h-[100dvh] flex flex-col items-center justify-center px-6 text-center overflow-hidden">
+
+    <!-- Recent work, adrift behind the wordmark. Built in JS (below) from
+         each category's own images, so it stays in sync with the galleries
+         with nothing to keep in parallel by hand. Each photo is a real link
+         into its category, so no aria-hidden here — that would hide focusable
+         content from assistive tech while leaving it reachable by keyboard. -->
+    <div class="hero-float-layer" id="hero-float"></div>
+
+    <p class="hero-line from-top font-mono text-[11px] sm:text-xs tracking-[0.3em] uppercase text-ink-soft mb-6 relative z-10">
+      Photographer
+    </p>
+
+    <!-- Tracking sits on the spans, not the h1: an em there would resolve
+         against the h1's inherited 16px and all but vanish, and the transition
+         overlay applies it at display size — leaving the two a glyph-width
+         apart at the hand-off. -->
+    <!-- Uppercased in CSS, not in the markup: the transition overlay finds the
+         hero wordmark by matching its text, so the source text has to stay
+         "Libby". -->
+    <h1 class="font-name leading-[0.86] uppercase relative z-10">
+      <span class="hero-line from-top tracking-[-0.01em] text-[16vw] sm:text-[9rem] md:text-[11rem] lg:text-[12.5rem] font-medium">Libby</span>
+      <span class="hero-line from-bottom italic tracking-[-0.01em] text-[16vw] sm:text-[9rem] md:text-[11rem] lg:text-[12.5rem] font-normal -mt-[0.115em]">Li</span>
+    </h1>
+
+    <!-- Side pills -->
+    <a href="#travel" class="pill float-slow hidden lg:inline-flex absolute left-6 xl:left-14 top-1/2 -translate-y-1/2 px-5 py-3 font-mono text-[11px] tracking-[0.14em] uppercase z-10">
+      <span class="dot bg-ink"></span> Travel Works
+    </a>
+    <a href="#bruin" class="pill float-slow-rev hidden lg:inline-flex absolute right-6 xl:right-14 top-1/2 -translate-y-1/2 px-5 py-3 font-mono text-[11px] tracking-[0.14em] uppercase z-10">
+      <span class="dot bg-ink"></span> Daily Bruin
+    </a>
+
+    <!-- Bottom nav -->
+    <div class="hero-line from-bottom absolute bottom-10 left-0 right-0 z-10 flex flex-col items-center gap-6">
+      <div class="flex gap-6 font-mono text-[11px] tracking-[0.14em] uppercase text-ink-soft">
+        <a href="#personal" class="nav-link hover:text-ink">Personal</a>
+      </div>
+    </div>
+  </section>
+
+  </div> <!-- /view: home -->
+
+  <!-- ================= TRAVEL ================= -->
+  <section id="travel" class="view" data-view="travel">
+    <a href="#home" class="pill back-pill px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase">← Back</a>
+    <div class="gallery-viewport" id="viewport-travel">
+      <div class="gallery-track" id="grid-travel">
+        <span class="scroll-cue font-mono text-[10px] tracking-[0.2em] uppercase text-ink-soft">Scroll to discover</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PERSONAL ================= -->
+  <section id="personal" class="view" data-view="personal">
+    <a href="#home" class="pill back-pill px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase">← Back</a>
+    <div class="gallery-viewport" id="viewport-personal">
+      <div class="gallery-track" id="grid-personal">
+        <span class="scroll-cue font-mono text-[10px] tracking-[0.2em] uppercase text-ink-soft">Scroll to discover</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DAILY BRUIN ================= -->
+  <section id="bruin" class="view" data-view="bruin">
+    <a href="#home" class="pill back-pill px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase">← Back</a>
+    <div class="gallery-viewport" id="viewport-bruin">
+      <div class="gallery-track" id="grid-bruin">
+        <span class="scroll-cue font-mono text-[10px] tracking-[0.2em] uppercase text-ink-soft">Scroll to discover</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= LIGHTBOX ================= -->
+  <div id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer">
+    <button id="lb-close" class="lb-btn absolute top-6 right-6 w-10 h-10 rounded-full border border-cream/30 text-cream flex items-center justify-center font-mono text-sm" aria-label="Close">✕</button>
+    <img id="lb-img" src="" alt="" />
+    <p id="lb-caption" class="absolute bottom-8 left-1/2 -translate-x-1/2 font-mono text-[11px] tracking-[0.14em] uppercase text-cream/80"></p>
+  </div>
+
+  <!-- Regenerated by `node build-photos.mjs` — see that file and photos/README.md.
+       Defines window.REAL_PHOTOS; empty ({}) until you've dropped photos in
+       and run the script at least once. -->
+  <script src="photos-data.js"></script>
+  <script>
+    // ---------------- Data ----------------
+    // Aspect ratios for the placeholder set — swap this whole block for real
+    // photo entries ({ w, h, src }) when the actual images are ready.
+    const ASPECTS = [
+      [800, 1000], [1000, 700], [700, 700], [700, 950], [1000, 650], [750, 1000],
+      [900, 600], [650, 850], [1000, 1000], [900, 1200], [1200, 800], [800, 800],
+      [640, 900], [1100, 700], [700, 1050], [950, 640], [880, 1100], [1000, 750],
+      [720, 720], [1150, 760], [760, 1000], [1000, 620], [860, 860], [680, 900],
+      [1050, 700], [820, 1080],
+    ];
+
+    // `shapeOffset` rotates which aspect ratio lands in each scatter slot, so
+    // the three galleries differ in silhouette as well as position.
+    const CATEGORY_META = {
+      // Placeholder swatches, three steps along the same ink -> cream line, so
+      // the galleries still read apart without introducing a hue.
+      travel:   { label: "Travel",      short: "Travel",   bg: "1B1815", fg: "F6F2E8", shapeOffset: 0 },
+      personal: { label: "Personal",    short: "Personal", bg: "3C3935", fg: "F6F2E8", shapeOffset: 9 },
+      bruin:    { label: "Daily Bruin", short: "Bruin",    bg: "5D5954", fg: "F6F2E8", shapeOffset: 17 },
+    };
+
+    // Seeded PRNG (mulberry32) — the scatter is randomised per gallery but
+    // stays identical across reloads and navigation, so the layout never
+    // reshuffles under the visitor mid-visit. Declared as a function (hoisted)
+    // so `categories` below can call it despite being defined first on the page.
+    function makeRng(seed) {
+      let t = seed >>> 0;
+      return function () {
+        t += 0x6d2b79f5;
+        let x = t;
+        x = Math.imul(x ^ (x >>> 15), x | 1);
+        x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function seedFrom(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+    // Salted into every scatter/slot-assignment seed below. Previously those
+    // seeds came from fixed strings alone, so the layout was randomised but
+    // identical on every reload — now this re-rolls once per page load, so
+    // refreshing reshuffles where every card lands (still stable for the
+    // rest of that one visit, since it's read once here, not re-rolled per use).
+    const LAYOUT_SEED = (Math.random() * 4294967296) >>> 0;
+
+    // Fisher-Yates, driven by the passed-in seeded rng so it stays part of
+    // the same reproducible-per-load sequence as everything else here.
+    function shuffled(arr, rng) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // Each scattered card is its own small gallery — a set of related shots,
+    // not a single photo. Set size varies per card (2–6), seeded so it's
+    // stable across reloads like everything else here. The card's own w/h/t
+    // double as its first set photo, so the thumbnail is just "the top of
+    // the stack" rather than a separate, unrelated cover image.
+    // Some cards land on 1 — a single photo, same as before this feature —
+    // so the badge (and the ability to scroll at all) only shows up where
+    // there's actually something to scroll through.
+    const SET_SIZE_MIN = 1;
+    const SET_SIZE_MAX = 6;
+
+    // Real photos, dropped in photos/<category>/ and picked up by
+    // `node build-photos.mjs` into photos-data.js (see that file's own
+    // comments). A category with none yet just falls through to the
+    // placeholder generator below — swap categories over one at a time,
+    // nothing here requires doing it all at once.
+    const REAL_PHOTOS = window.REAL_PHOTOS || {};
+
+    const categories = Object.fromEntries(
+      Object.entries(CATEGORY_META).map(([key, meta]) => {
+        const real = REAL_PHOTOS[key];
+        if (real && real.length) {
+          // Each entry is already one card's full set — build-photos.mjs
+          // put a loose file in as a set of one and a subfolder in as a
+          // set of however many images it held. The cover (what the grid
+          // shows) is just that set's first photo.
+          const images = real.map((card) => {
+            const cover = card.sets[0];
+            return { w: cover.w, h: cover.h, t: cover.t, src: cover.src, clip: false, sets: card.sets };
+          });
+          return [key, { ...meta, images }];
+        }
+        const images = ASPECTS.map((_, i) => {
+          const [w, h] = ASPECTS[(i + meta.shapeOffset) % ASPECTS.length];
+          const t = `${meta.short} ${String(i + 1).padStart(2, "0")}`;
+          const setRng = makeRng(seedFrom(`${key}-${i}-set`));
+          const setSize = SET_SIZE_MIN + Math.floor(setRng() * (SET_SIZE_MAX - SET_SIZE_MIN + 1));
+          const sets = Array.from({ length: setSize }, (_, si) => {
+            const [sw, sh] = ASPECTS[(i + meta.shapeOffset + si * 7) % ASPECTS.length];
+            return { w: sw, h: sh, t, clip: key === "bruin" && i === 1 && si === 0 };
+          });
+          return { w, h, t, clip: key === "bruin" && i === 1, sets };
+        });
+        return [key, { ...meta, images }];
+      })
+    );
+
+    // Locally-generated SVG placeholders — no external service, no network
+    // flakiness, instant paint. A category with real photos in photos-data.js
+    // (see build-photos.mjs) skips all of this — item.src just points at the
+    // real file. Once every category has real photos, this whole function,
+    // and the ASPECTS placeholder set above, can go.
+    function imgUrl(cat, item) {
+      if (item.src) return item.src;
+      const bg = item.clip ? "EBE7DD" : cat.bg;
+      const fg = item.clip ? "1B1815" : cat.fg;
+      const lines = item.clip ? ["DAILY BRUIN", "ARCHIVE SCAN"] : [item.t];
+      const fontSize = Math.round(item.w * 0.062);
+      const lineHeight = fontSize * 1.4;
+      const startY = item.h / 2 - ((lines.length - 1) * lineHeight) / 2;
+      const tspans = lines
+        .map((l, i) => `<tspan x="50%" y="${startY + i * lineHeight}">${l}</tspan>`)
+        .join("");
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${item.w}" height="${item.h}" viewBox="0 0 ${item.w} ${item.h}"><rect width="100%" height="100%" fill="#${bg}"/><text font-family="IBM Plex Mono, monospace" font-size="${fontSize}" letter-spacing="1" fill="#${fg}" text-anchor="middle">${tspans}</text></svg>`;
+      return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    }
+
+    // ---------------- Render grids ----------------
+    const gridEls = {
+      travel: document.getElementById("grid-travel"),
+      personal: document.getElementById("grid-personal"),
+      bruin: document.getElementById("grid-bruin"),
+    };
+
+    // Hand-tuned scatter field: [x% of track width, y% of viewport height, size].
+    // Neighbouring x positions get widely separated y values so photos read as
+    // freely scattered without colliding, and the big frames are kept high
+    // enough that their full height still clears the bottom edge.
+    const LAYOUT = [
+      [1, 26, "m"],  [4, 58, "s"],  [8, 7, "l"],   [12, 40, "s"], [15, 70, "s"],
+      [19, 20, "l"], [23, 50, "m"], [26, 7, "s"],  [30, 32, "l"], [34, 68, "m"],
+      [38, 14, "m"], [41, 44, "s"], [45, 78, "m"], [49, 8, "m"],  [53, 36, "l"],
+      [57, 66, "s"], [61, 18, "s"], [64, 46, "l"], [68, 79, "m"], [72, 7, "m"],
+      [76, 30, "s"], [80, 56, "m"], [85, 12, "l"], [89, 42, "s"], [93, 76, "s"],
+      [96, 22, "m"],
+    ];
+
+    // Base s/m/l sizes, tuned for a full 26-card placeholder gallery. A
+    // category with far fewer real photos scales these up — see scaleFor()
+    // below — so a couple of photos still cover a real fraction of the page
+    // instead of sitting small in the one scatter slot they happened to land on.
+    const SIZE_BASE = {
+      s: { min: 64, vw: 6.5, max: 104 },
+      m: { min: 84, vw: 9, max: 142 },
+      l: { min: 104, vw: 11.5, max: 184 },
+    };
+    function sizeWidthFor(size, scale) {
+      const b = SIZE_BASE[size];
+      return `clamp(${Math.round(b.min * scale)}px, ${(b.vw * scale).toFixed(2)}vw, ${Math.round(b.max * scale)}px)`;
+    }
+    // Area (not width) is what should roughly track 1/count, so width scales
+    // by its square root — capped so a single photo doesn't balloon into
+    // something ungainly. At the full 26 cards this is exactly 1 (no change).
+    function scaleFor(count) {
+      return clamp(Math.sqrt(LAYOUT.length / Math.max(count, 1)), 1, 2.2);
+    }
+    // LAYOUT's x-values already run roughly left-to-right in array order —
+    // with a full 26 cards that's incidental, but it means sampling `count`
+    // evenly-spaced indices out of it (instead of just the first `count`)
+    // spreads a handful of cards across the whole width instead of bunching
+    // them in whatever corner the array happens to start in.
+    function layoutSlot(count, i) {
+      if (count >= LAYOUT.length) return LAYOUT[i % LAYOUT.length];
+      const idx = Math.round(i * (LAYOUT.length - 1) / Math.max(count - 1, 1));
+      return LAYOUT[idx];
+    }
+    // Bigger cards alone don't fix the empty feeling if they're still
+    // scattered across a track sized for 26 of them — 2 large photos on a
+    // 170vw track just means a long empty scroll between them. The track
+    // shrinks toward MIN_TRACK_VW as card count (and card size) drops, and
+    // is exactly the original width at a full 26 cards.
+    const MOBILE_TRACK = window.matchMedia("(max-width: 860px)").matches;
+    const BASE_TRACK_VW = MOBILE_TRACK ? 430 : 170;
+    const MIN_TRACK_VW = MOBILE_TRACK ? 160 : 110; // still > 100vw, so there's always a little real scroll
+    function trackWidthFor(count, scale) {
+      const density = clamp((count * scale) / LAYOUT.length, 0, 1);
+      return `${Math.round(MIN_TRACK_VW + (BASE_TRACK_VW - MIN_TRACK_VW) * density)}vw`;
+    }
+
+    Object.entries(categories).forEach(([key, cat]) => {
+      const grid = gridEls[key];
+      const rng = makeRng(seedFrom(key) ^ LAYOUT_SEED);
+      const scale = scaleFor(cat.images.length);
+      grid.style.width = trackWidthFor(cat.images.length, scale);
+      // Which photo lands in which of the evenly-spread slots is reshuffled
+      // per load — the slots themselves (and their non-colliding spacing)
+      // stay exactly as hand-tuned in LAYOUT.
+      const slotOrder = shuffled([...Array(cat.images.length).keys()], rng);
+
+      cat.images.forEach((item, i) => {
+        const [x, y, size] = layoutSlot(cat.images.length, slotOrder[i]);
+        // Bounded jitter: enough to make each gallery read differently, small
+        // enough that the hand-tuned spacing still holds.
+        const jx = (rng() - 0.5) * 3; // ±1.5%
+        const jy = (rng() - 0.5) * 6; // ±3%
+
+        const card = document.createElement("div");
+        card.className = "photo-card reveal";
+        card.tabIndex = 0;
+        card.dataset.cat = key;
+        card.dataset.index = i;
+        card.style.left = `${clamp(x + jx, 0.5, 97.5)}%`;
+        card.dataset.top = clamp(y + jy, 6, 80);
+        card.style.top = `${card.dataset.top}%`;
+        card.style.width = sizeWidthFor(size, scale);
+        card.style.transitionDelay = `${Math.min(i * 35, 500)}ms`;
+        // The badge is the only hint a card holds more than one photo — it
+        // only appears when there's something behind the cover to find.
+        const setBadge = item.sets.length > 1
+          ? `<span class="set-badge font-mono">${item.sets.length}</span>`
+          : "";
+        card.innerHTML = `
+          <div class="photo-frame" style="aspect-ratio:${item.w}/${item.h}">
+            <img src="${imgUrl(cat, item)}" alt="${cat.label} photograph ${i + 1}" width="${item.w}" height="${item.h}" />
+            ${setBadge}
+          </div>
+          <span class="card-count font-mono">${String(i + 1).padStart(2, "0")} / ${String(cat.images.length).padStart(2, "0")}</span>
+        `;
+        grid.appendChild(card);
+      });
+    });
+
+    // A gallery is exactly one screen tall and never scrolls vertically, so a
+    // card hanging past the bottom edge is simply lost — its caption sliced off
+    // with no way to reach it. Pull any overhang back inside. Measured from
+    // layout offsets rather than bounding rects, so a reveal or magnify
+    // transform in flight can't skew the reading, and always recomputed from
+    // the card's original position so repeated passes don't creep upward.
+    const EDGE_INSET = 18; // px of breathing room above the bottom rule
+    function fitCards(track) {
+      const h = track.clientHeight;
+      if (!h) return; // hidden view — offsets all read as zero
+      const limit = h - EDGE_INSET;
+      track.querySelectorAll(".photo-card").forEach((card) => {
+        card.style.top = `${card.dataset.top}%`;
+        const over = card.offsetTop + card.offsetHeight - limit;
+        if (over > 0) card.style.top = `${((card.offsetTop - over) / h) * 100}%`;
+      });
+    }
+    const fitAllCards = () => Object.values(gridEls).forEach(fitCards);
+    fitAllCards();
+    window.addEventListener("resize", fitAllCards);
+
+    // ---------------- Horizontal scroll interaction ----------------
+    // Vertical wheel/trackpad gestures pan the strip sideways; released at
+    // either edge so page scroll continues normally once a strip is exhausted.
+    //
+    // Wheel input feeds a target position, and a damped spring eases the real
+    // scroll toward it each frame. Velocity builds from rest and decays back to
+    // rest, so motion slows at both ends of the gesture instead of snapping.
+    const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Critically damped: for this integrator, no-overshoot requires
+    // (1 + d - d*k)^2 >= 4d. At k = 0.045 that puts the boundary at d ~= 0.681,
+    // so 0.67 glides to a stop without ever springing back past the target.
+    // Low stiffness keeps acceleration gentle and stretches out the glide.
+    const SPRING_STIFFNESS = 0.045; // pull toward target per frame
+    const SPRING_DAMPING = 0.67;    // velocity retained per frame
+    const SETTLE_EPSILON = 0.25;    // px — below this the motion is imperceptible
+    // Near either end, each wheel notch contributes progressively less travel,
+    // so the strip drifts into the boundary instead of hitting a hard clamp.
+    const EDGE_SOFT_ZONE = 420;     // px of run-in over which input is damped
+
+    document.querySelectorAll(".gallery-viewport").forEach((vp) => {
+      // `current` is the authoritative float position. Reading it back from
+      // vp.scrollLeft instead would be lossy — the DOM rounds scroll offsets to
+      // whole pixels, so sub-pixel steps would vanish, the distance-to-target
+      // would never reach zero, and the rAF loop would spin forever.
+      let current = vp.scrollLeft;
+      let target = vp.scrollLeft;
+      let velocity = 0;
+      let rafId = null;
+      const maxScroll = () => vp.scrollWidth - vp.clientWidth;
+      // Exposed so activateView can force a resync once this gallery is
+      // genuinely on screen — see the note on GALLERY_SCROLL_SYNC below for
+      // why the "scroll" listener further down isn't enough on its own.
+      vp._syncScrollSpring = () => { current = target = vp.scrollLeft; };
+
+      function tick() {
+        const dist = target - current;
+        velocity = (velocity + dist * SPRING_STIFFNESS) * SPRING_DAMPING;
+        if (Math.abs(dist) < SETTLE_EPSILON && Math.abs(velocity) < SETTLE_EPSILON) {
+          current = target; // settle exactly, then stop burning frames
+          vp.scrollLeft = target;
+          velocity = 0;
+          rafId = null;
+          return;
+        }
+        current += velocity;
+        vp.scrollLeft = current;
+        rafId = requestAnimationFrame(tick);
+      }
+      function startSpring() {
+        if (rafId === null) rafId = requestAnimationFrame(tick);
+      }
+      function stopSpring() {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        rafId = null;
+        velocity = 0;
+        current = target = vp.scrollLeft;
+      }
+
+      vp.addEventListener(
+        "wheel",
+        (e) => {
+          const max = maxScroll();
+          if (max <= 0) return;
+          if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal gesture, leave it alone
+          const goingRight = e.deltaY > 0;
+          // Compare against the target, not the live position, so the strip
+          // hands scrolling back to the page only once it's truly exhausted.
+          if ((goingRight && target >= max - 0.5) || (!goingRight && target <= 0.5)) return;
+          e.preventDefault();
+          if (REDUCE_MOTION) {
+            vp.scrollLeft = clamp(vp.scrollLeft + e.deltaY, 0, max);
+            current = target = vp.scrollLeft;
+            return;
+          }
+          // Taper input as the edge approaches so arrival is a glide, not a stop.
+          const remaining = e.deltaY > 0 ? max - target : target;
+          const taper = remaining < EDGE_SOFT_ZONE
+            ? Math.max(0.12, remaining / EDGE_SOFT_ZONE)
+            : 1;
+          target = clamp(target + e.deltaY * taper, 0, max);
+          startSpring();
+        },
+        { passive: false }
+      );
+
+      // Touch scrolls natively — stand down so the spring doesn't fight momentum.
+      vp.addEventListener("touchstart", stopSpring, { passive: true });
+      // Keep the target in sync when the position changes by any other means.
+      vp.addEventListener("scroll", () => {
+        // A card can bleed a pixel past the bottom edge, which is enough for
+        // focusing it to nudge the track vertically. The page holds still, so
+        // pin it back — sideways is the only axis that moves.
+        if (vp.scrollTop) vp.scrollTop = 0;
+        if (rafId === null) current = target = vp.scrollLeft;
+      }, { passive: true });
+
+      // Click-and-drag panning for mouse users — stays 1:1 with the cursor.
+      let isDown = false, dragged = false, startX = 0, startScroll = 0;
+      vp.addEventListener("mousedown", (e) => {
+        isDown = true; dragged = false;
+        startX = e.pageX; startScroll = vp.scrollLeft;
+        stopSpring();
+        vp.classList.add("dragging");
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!isDown) return;
+        const dx = e.pageX - startX;
+        if (Math.abs(dx) > 4) dragged = true;
+        vp.scrollLeft = clamp(startScroll - dx, 0, maxScroll());
+        current = target = vp.scrollLeft;
+      });
+      window.addEventListener("mouseup", () => {
+        if (!isDown) return;
+        isDown = false;
+        vp.classList.remove("dragging");
+        current = target = vp.scrollLeft;
+      });
+      // Suppress the click-to-open-lightbox when the pointer moved (was a drag, not a tap).
+      vp.addEventListener(
+        "click",
+        (e) => { if (dragged) { e.preventDefault(); e.stopPropagation(); } },
+        true
+      );
+    });
+
+    // ---------------- Cursor magnifier ----------------
+    // Photos swell by proximity to the pointer: whatever sits under the cursor
+    // takes the full boost, neighbours taper off with distance, so the cursor
+    // reads as a lens gliding over the field.
+    const FINE_POINTER = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const MAG_RADIUS = 340;     // px of influence around the cursor
+    const MAG_MAX_BOOST = 0.35; // extra scale on the photo under the cursor
+    // Each photo's scale rides its own critically damped spring, so it swells
+    // and relaxes with a little weight instead of snapping to the pointer.
+    // Same no-overshoot rule as the scroll: (1 + d - d*k)^2 >= 4d, which at
+    // k = 0.055 puts the boundary at d ~= 0.656.
+    const MAG_STIFFNESS = 0.055;
+    const MAG_DAMPING = 0.65;
+    const MAG_EPSILON = 0.0005; // scale units below which motion is invisible
+
+    if (FINE_POINTER && !REDUCE_MOTION) {
+      document.documentElement.classList.add("magnify");
+
+      document.querySelectorAll(".gallery-viewport").forEach((vp) => {
+        const track = vp.querySelector(".gallery-track");
+        const cards = [...track.querySelectorAll(".photo-card")].map((card) => ({
+          card,
+          frame: card.querySelector(".photo-frame"),
+          cur: 1,
+          vel: 0,
+          box: null,
+          z: "",
+        }));
+        if (!cards.length) return;
+
+        let vpRect = null;
+        let pointer = null; // client coords, or null when the cursor is away
+        let rafId = null;
+
+        // Measured lazily: an inactive view is display:none, where every offset
+        // reads back 0, so measuring up front would cache garbage.
+        function measure() {
+          vpRect = vp.getBoundingClientRect();
+          for (const c of cards) {
+            c.box = {
+              left: c.card.offsetLeft,
+              top: c.card.offsetTop,
+              right: c.card.offsetLeft + c.frame.offsetWidth,
+              bottom: c.card.offsetTop + c.frame.offsetHeight,
+            };
+          }
+        }
+
+        function frame() {
+          let px = null, py = null;
+          if (pointer && vpRect) {
+            // Cursor in track space, so magnification tracks the photos as the
+            // strip scrolls beneath a stationary pointer.
+            px = pointer.x - vpRect.left + vp.scrollLeft;
+            py = pointer.y - vpRect.top;
+          }
+
+          let busy = false;
+          for (const c of cards) {
+            let tgt = 1;
+            if (px !== null && c.box) {
+              // Distance to the photo's nearest edge — 0 while the cursor is
+              // inside it, so anything passed over gets the full boost.
+              const dx = Math.max(c.box.left - px, 0, px - c.box.right);
+              const dy = Math.max(c.box.top - py, 0, py - c.box.bottom);
+              const d = Math.hypot(dx, dy);
+              if (d < MAG_RADIUS) {
+                const t = 1 - d / MAG_RADIUS;
+                tgt = 1 + MAG_MAX_BOOST * t * t * (3 - 2 * t); // smoothstep falloff
+              }
+            }
+
+            const dist = tgt - c.cur;
+            c.vel = (c.vel + dist * MAG_STIFFNESS) * MAG_DAMPING;
+            if (Math.abs(dist) < MAG_EPSILON && Math.abs(c.vel) < MAG_EPSILON) {
+              c.cur = tgt;
+              c.vel = 0;
+            } else {
+              c.cur += c.vel;
+              busy = true;
+            }
+
+            c.frame.style.transform = `scale(${c.cur.toFixed(4)})`;
+            // Keep the most magnified photo above its neighbours.
+            const z = c.cur > 1.001 ? String(Math.round(c.cur * 100)) : "";
+            if (z !== c.z) { c.card.style.zIndex = z; c.z = z; }
+          }
+
+          // Only keep animating while something is actually changing. Holding
+          // the loop open merely because the pointer is inside the gallery
+          // would burn a frame every 16ms on a completely still screen.
+          rafId = busy ? requestAnimationFrame(frame) : null;
+        }
+        function start() { if (rafId === null) rafId = requestAnimationFrame(frame); }
+
+        vp.addEventListener("pointerenter", (e) => {
+          if (e.pointerType !== "mouse") return;
+          measure();
+          pointer = { x: e.clientX, y: e.clientY };
+          start();
+        });
+        vp.addEventListener("pointermove", (e) => {
+          if (e.pointerType !== "mouse") return;
+          if (!vpRect) measure();
+          pointer = { x: e.clientX, y: e.clientY };
+          start();
+        });
+        vp.addEventListener("pointerleave", () => { pointer = null; start(); });
+        // The loop stops once everything settles, so scrolling under a still
+        // pointer has to wake it — otherwise magnification would freeze while
+        // the photos slide past.
+        vp.addEventListener("scroll", () => { if (pointer) start(); }, { passive: true });
+        window.addEventListener("resize", () => {
+          vpRect = null;
+          if (pointer) measure();
+        });
+
+        // Establish inline transforms so the CSS hover lift can't fight these.
+        for (const c of cards) c.frame.style.transform = "scale(1)";
+      });
+    }
+
+    // ---------------- Hero float layer ----------------
+    // Each category's most recent photos drift behind the wordmark, tiled
+    // densely enough to fill most of the hero rather than read as a few
+    // scattered accents. "Most recent" means the tail of that category's own
+    // images array — once real photos replace the placeholders, whichever
+    // get appended last surface here automatically, nothing to keep in sync
+    // by hand. Category identity (dataset.cat/index) is what the
+    // click-triggered flight below uses to find each photo's home gallery.
+    const FLOAT_SIZE_WIDTH = {
+      s: "clamp(72px, 7vw, 118px)",
+      m: "clamp(96px, 9.5vw, 160px)",
+      l: "clamp(130px, 13vw, 210px)",
+    };
+    // On a narrow phone the hero copy's own line height eats most of the
+    // screen (label through bottom nav routinely spans 35%–95% of the
+    // height), unlike desktop where it's a compact island — so there's no
+    // wide "sides" to scatter into without sitting behind thin, low-contrast
+    // text like the mono label. Fewer photos, confined to the open band
+    // between the header and where the wordmark starts, keeps every one of
+    // them clear of text entirely rather than fighting the layout per photo.
+    const MOBILE_HERO = window.matchMedia("(max-width: 640px)").matches;
+    const HERO_FLOAT_PER_CAT = MOBILE_HERO ? 3 : 6;
+    // Hand-placed scatter, not a grid — sits behind the type (z-0 vs. the
+    // hero copy's z-10), so drifting under a letter reads as photos peeking
+    // out rather than clutter competing with the name. Top-row y is a
+    // percentage of viewport height, but the fixed header's own height
+    // isn't — on a short viewport the same percentage lands much closer to
+    // it in real pixels, and the header has no background to protect its
+    // nav links the way a pill does. 16%/18% floors clear it down to about
+    // a 620px-tall viewport, well past anything this site targets.
+    //
+    // The big wordmark itself is thick, bold, and huge — a photo behind a
+    // stroke of it reads fine, same as it already does at the edges where
+    // letters overhang a card. What can't take a photo behind it is the
+    // thin mono label above and the nav line below, both a fraction of the
+    // letter-strokes' weight and contrast. So the middle third of the hero
+    // is only off-limits in two shallow bands (around the label, around
+    // that bottom line) — everywhere else, including straight behind
+    // "Libby Li", is fair game, which is what lets the scatter reach the
+    // centre instead of leaving it as a hole in the middle of the field.
+    // One row above the label rather than two: with height pinned to ~8-9%
+    // of viewport height (see the media query above), two stacked rows plus
+    // margins need more clearance than fits between the header and the
+    // label on a short phone — one row leaves real headroom on both sides
+    // at every height this site targets.
+    const FLOAT_POS = MOBILE_HERO
+      ? [
+          [3, 19, "s"], [18, 21, "m"], [36, 18, "s"], [62, 20, "m"], [80, 22, "s"], [96, 19, "s"],
+          [40, 50, "s"], [60, 56, "s"], [50, 64, "s"],
+        ]
+      : [
+          [4, 17, "m"], [18, 16, "s"], [32, 16, "s"], [66, 16, "m"], [84, 17, "l"], [96, 24, "s"],
+          [6, 40, "l"], [20, 62, "s"], [8, 85, "m"], [23, 93, "s"],
+          [78, 36, "s"], [93, 48, "m"], [80, 72, "l"], [92, 89, "s"],
+          [42, 40, "s"], [58, 45, "s"], [46, 62, "m"], [56, 67, "s"],
+        ];
+    const heroFloatLayer = document.getElementById("hero-float");
+    const floatCards = [];
+    (function buildHeroFloat() {
+      const rng = makeRng(seedFrom("hero-float") ^ LAYOUT_SEED);
+      const entries = [];
+      Object.entries(categories).forEach(([key, cat]) => {
+        const recent = cat.images.slice(-HERO_FLOAT_PER_CAT);
+        // A category with fewer real photos than HERO_FLOAT_PER_CAT gets all
+        // of them — recent.length, not HERO_FLOAT_PER_CAT, is how many slice()
+        // actually returned, so it's the only correct base for the offset below.
+        recent.forEach((item, ri) => {
+          const index = cat.images.length - recent.length + ri;
+          entries.push({ key, cat, item, index });
+        });
+      });
+      // Which photo lands in which fixed FLOAT_POS spot is reshuffled per
+      // load — the spots themselves (hand-placed to clear the hero copy)
+      // stay fixed.
+      shuffled(entries, rng).forEach(({ key, cat, item, index }, slot) => {
+        const [xPct, yPct, size] = FLOAT_POS[slot % FLOAT_POS.length];
+
+        // A real link, not a decorative div — clicking one enters that
+        // photo's category, flying it (and the rest of its category's
+        // floats) into the gallery via the same handler the nav pills use.
+        const el = document.createElement("a");
+        el.href = `#${key}`;
+        el.setAttribute("aria-label", `View ${cat.label} photos`);
+        el.className = "float-card";
+        el.dataset.cat = key;
+        el.dataset.index = index;
+        el.style.left = `${xPct}%`;
+        el.style.top = `${yPct}%`;
+        el.style.width = FLOAT_SIZE_WIDTH[size];
+        el._rot = ((rng() - 0.5) * 6).toFixed(2); // fixed per-card tilt, degrees
+
+        const inner = document.createElement("div");
+        inner.className = "float-card-inner";
+        const dur = 20 + rng() * 14; // 20–34s, unsynchronised per card
+        inner.style.animationDuration = `${dur.toFixed(2)}s`;
+        inner.style.animationDelay = `-${(rng() * dur).toFixed(2)}s`; // random phase
+        inner.style.setProperty("--fx", `${(10 + rng() * 12).toFixed(1)}px`);
+        inner.style.setProperty("--fy", `${(-(10 + rng() * 14)).toFixed(1)}px`);
+        inner.style.setProperty("--fr", `${(1 + rng() * 1.6).toFixed(2)}deg`);
+        // Desktop keeps the image's natural aspect ratio, same as the
+        // gallery. Mobile omits it — that frame's height is pinned by a
+        // CSS clamp() instead (see .float-card .photo-frame), and
+        // object-fit:cover crops whatever lands in it.
+        const frameStyle = MOBILE_HERO ? "" : ` style="aspect-ratio:${item.w}/${item.h}"`;
+        inner.innerHTML = `
+          <div class="photo-frame"${frameStyle}>
+            <img src="${imgUrl(cat, item)}" alt="" />
+          </div>
+        `;
+        el.appendChild(inner);
+        heroFloatLayer.appendChild(el);
+        floatCards.push(el);
+      });
+    })();
+
+    // Mouse parallax: cards travel toward/away from the pointer at different
+    // depths — close to tracking it directly, with just enough lag that it
+    // reads as trailing rather than locked to the cursor. A plain per-frame
+    // lerp with no CSS transition, same as the cursor ring — a transition
+    // here would fight the lerp's own smoothing.
+    if (FINE_POINTER && !REDUCE_MOTION && floatCards.length) {
+      const heroEl = document.getElementById("top");
+      let txF = 0, tyF = 0, pxF = 0, pyF = 0, floatRaf = null;
+
+      function floatTick() {
+        pxF += (txF - pxF) * 0.11;
+        pyF += (tyF - pyF) * 0.11;
+        floatCards.forEach((el, i) => {
+          const depth = 90 + (i % 3) * 45; // px of travel per unit of pointer offset
+          el.style.transform = `translate(${(pxF * depth).toFixed(2)}px, ${(pyF * depth).toFixed(2)}px) rotate(${el._rot}deg)`;
+        });
+        floatRaf = (Math.abs(txF - pxF) > 0.02 || Math.abs(tyF - pyF) > 0.02)
+          ? requestAnimationFrame(floatTick)
+          : null;
+      }
+      function wakeFloat() { if (floatRaf === null) floatRaf = requestAnimationFrame(floatTick); }
+
+      heroEl.addEventListener("pointermove", (e) => {
+        const r = heroEl.getBoundingClientRect();
+        txF = ((e.clientX - r.left) / r.width - 0.5) * 2;
+        tyF = ((e.clientY - r.top) / r.height - 0.5) * 2;
+        wakeFloat();
+      }, { passive: true });
+      heroEl.addEventListener("pointerleave", () => { txF = 0; tyF = 0; wakeFloat(); }, { passive: true });
+    } else {
+      // No parallax on this device, but the fixed per-card tilt still applies.
+      floatCards.forEach((el) => { el.style.transform = `rotate(${el._rot}deg)`; });
+    }
+
+    // ---------------- Ring cursor ----------------
+    // Replaces the pointer with an outlined circle that trails slightly, and
+    // floods solid over anything clickable.
+    if (FINE_POINTER) {
+      const ring = document.getElementById("cursor-ring");
+      const TARGETS = ".photo-card, a, button, [role='button']";
+      const CURSOR_EASE = 0.2; // plain lerp: a cursor must track closely, so no
+                               // spring ease-in here — that would feel laggy.
+      let tx = 0, ty = 0, cx = 0, cy = 0;
+      let placed = false;
+      let rafId = null;
+
+      function draw(x, y) { ring.style.transform = `translate(${x}px, ${y}px)`; }
+
+      function tick() {
+        cx += (tx - cx) * CURSOR_EASE;
+        cy += (ty - cy) * CURSOR_EASE;
+        if (Math.abs(tx - cx) < 0.1 && Math.abs(ty - cy) < 0.1) {
+          cx = tx; cy = ty;
+          draw(cx, cy);
+          rafId = null;
+          return;
+        }
+        draw(cx, cy);
+        rafId = requestAnimationFrame(tick);
+      }
+
+      document.addEventListener("pointermove", (e) => {
+        if (e.pointerType !== "mouse") return;
+        tx = e.clientX;
+        ty = e.clientY;
+        if (!placed) {
+          // First sighting: drop the ring straight onto the pointer rather
+          // than letting it fly in from the corner.
+          placed = true;
+          cx = tx; cy = ty;
+          draw(cx, cy);
+          ring.classList.add("is-visible");
+        }
+        ring.classList.toggle("over-target", !!(e.target.closest && e.target.closest(TARGETS)));
+        if (REDUCE_MOTION) { cx = tx; cy = ty; draw(cx, cy); return; }
+        if (rafId === null) rafId = requestAnimationFrame(tick);
+      }, { passive: true });
+
+      // Hide while the pointer is outside the window entirely.
+      document.addEventListener("mouseleave", () => ring.classList.remove("is-visible"));
+      document.addEventListener("mouseenter", () => { if (placed) ring.classList.add("is-visible"); });
+
+      document.documentElement.classList.add("custom-cursor");
+    }
+
+    // ---------------- Scroll reveal ----------------
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-visible");
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -60px 0px" }
+    );
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+    // Safety net: never leave content permanently hidden (slow IO, reduced motion, etc.)
+    setTimeout(() => {
+      document.querySelectorAll(".reveal:not(.is-visible)").forEach((el) => {
+        el.classList.add("is-visible");
+        io.unobserve(el);
+      });
+    }, 400);
+
+    // ---------------- Mobile nav ----------------
+    const mobileNav = document.getElementById("mobile-nav");
+    const menuBtn = document.getElementById("menu-btn");
+    const menuClose = document.getElementById("menu-close");
+    function openMenu() {
+      mobileNav.classList.add("open");
+      menuBtn.setAttribute("aria-expanded", "true");
+      menuBtn.style.visibility = "hidden";
+    }
+    function closeMenu() {
+      mobileNav.classList.remove("open");
+      menuBtn.setAttribute("aria-expanded", "false");
+      menuBtn.style.visibility = "";
+    }
+    menuBtn.addEventListener("click", openMenu);
+    menuClose.addEventListener("click", closeMenu);
+    mobileNav.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeMenu));
+
+    // ---------------- Lightbox ----------------
+    // Each card is its own small gallery now, not one photo in a category-wide
+    // filmstrip — currentCard picks the card, currentSetIndex picks a photo
+    // within just that card's set. There's no more stepping past a card's own
+    // edges into the next card's set; scrolling one runs out, same as it would
+    // scrolling a real filmstrip that has a start and an end.
+    const lightbox = document.getElementById("lightbox");
+    const lbImg = document.getElementById("lb-img");
+    const lbCaption = document.getElementById("lb-caption");
+    const cursorRing = document.getElementById("cursor-ring");
+    let currentCat = null, currentCard = null, currentSetIndex = 0;
+
+    function showImage() {
+      const cat = categories[currentCat];
+      const card = cat.images[currentCard];
+      const item = card.sets[currentSetIndex];
+      lbImg.src = imgUrl(cat, item);
+      lbImg.alt = card.sets.length > 1
+        ? `${cat.label} photograph ${currentCard + 1}, ${currentSetIndex + 1} of ${card.sets.length}`
+        : `${cat.label} photograph ${currentCard + 1}`;
+      lbCaption.textContent = card.sets.length > 1
+        ? `${card.t} — ${currentSetIndex + 1} / ${card.sets.length}`
+        : card.t;
+    }
+    function openLightbox(catKey, cardIndex) {
+      currentCat = catKey; currentCard = cardIndex; currentSetIndex = 0;
+      showImage();
+      lightbox.classList.add("open");
+      cursorRing.classList.add("lightbox-mode");
+    }
+    function closeLightbox() {
+      lightbox.classList.remove("open");
+      cursorRing.classList.remove("lightbox-mode");
+    }
+    function step(delta) {
+      const card = categories[currentCat].images[currentCard];
+      const next = clamp(currentSetIndex + delta, 0, card.sets.length - 1);
+      if (next === currentSetIndex) return;
+      currentSetIndex = next;
+      showImage();
+    }
+
+    document.querySelectorAll(".photo-card").forEach((card) => {
+      const open = () => openLightbox(card.dataset.cat, parseInt(card.dataset.index, 10));
+      card.addEventListener("click", open);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    });
+
+    document.getElementById("lb-close").addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", (e) => { if (e.target === lightbox) closeLightbox(); });
+    document.addEventListener("keydown", (e) => {
+      if (!lightbox.classList.contains("open")) return;
+      if (e.key === "Escape") closeLightbox();
+      // Arrow keys stand in for the removed prev/next buttons — scroll is the
+      // primary way in, but keyboard-only visitors still need a way through.
+      if (e.key === "ArrowLeft") step(-1);
+      if (e.key === "ArrowRight") step(1);
+    });
+
+    // Scroll (wheel or trackpad) is the only way through a set once inside
+    // it — collapsed to discrete steps rather than tracking deltaY 1:1, so
+    // one gesture reliably moves by one photo instead of racing through the
+    // set on a single fast trackpad swipe.
+    const WHEEL_COOLDOWN_MS = 420;
+    const WHEEL_THRESHOLD = 4; // px — filters stray near-zero deltas, not real intent
+    let lastWheelStep = 0;
+    lightbox.addEventListener(
+      "wheel",
+      (e) => {
+        if (!lightbox.classList.contains("open")) return;
+        e.preventDefault();
+        if (Math.abs(e.deltaY) < WHEEL_THRESHOLD) return;
+        const now = performance.now();
+        if (now - lastWheelStep < WHEEL_COOLDOWN_MS) return;
+        lastWheelStep = now;
+        step(e.deltaY > 0 ? 1 : -1);
+      },
+      { passive: false }
+    );
+
+    // Touch has no wheel to scroll and the arrow buttons are gone, so a
+    // horizontal swipe is the only way through a set on a phone — same
+    // one-step-per-gesture feel as the wheel above.
+    const SWIPE_THRESHOLD = 40; // px
+    let touchStartX = null;
+    lightbox.addEventListener("touchstart", (e) => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
+    lightbox.addEventListener("touchend", (e) => {
+      if (touchStartX === null) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      touchStartX = null;
+      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+      step(dx < 0 ? 1 : -1); // swipe left -> next, same direction as the gallery strip itself
+    }, { passive: true });
+
+    // ---------------- View routing ----------------
+    // Each view is a self-contained screen, reachable only via nav links
+    // (header, hero pills, hero nav). Hash-based so links stay shareable and
+    // the browser back button works.
+    const GALLERY_VIEWS = ["travel", "personal", "bruin"];
+    const viewEls = {
+      home: document.querySelector('[data-view="home"]'),
+      travel: document.querySelector('[data-view="travel"]'),
+      personal: document.querySelector('[data-view="personal"]'),
+      bruin: document.querySelector('[data-view="bruin"]'),
+    };
+
+    function playReveal(container) {
+      const els = container.querySelectorAll(".reveal");
+      els.forEach((el) => el.classList.remove("is-visible"));
+      void container.offsetWidth; // force reflow so the removal registers before re-adding
+      requestAnimationFrame(() => els.forEach((el) => el.classList.add("is-visible")));
+    }
+
+    function activateView(name) {
+      Object.entries(viewEls).forEach(([key, el]) => el.classList.toggle("active", key === name));
+      if (name === "home") resetFloatLayer(); // undo any leftover flight/fade so the hero looks whole again
+      if (name !== "home") {
+        // Only measurable now that the view is on screen — a display:none
+        // gallery reports zero offsets.
+        fitCards(viewEls[name].querySelector(".gallery-track"));
+        playReveal(viewEls[name]);
+        // The wheel/drag spring's own idea of the scroll position (in a
+        // closure, not read from the DOM each frame) can be stale here: the
+        // float-flight and gallery-crossfade code both position this strip
+        // before this point, sometimes while it's still display:none for
+        // measurement — and a display:none element reports scrollLeft as 0,
+        // which is exactly the value a same-tick native scroll event fires
+        // with while that's still true, overwriting the correct sync moments
+        // earlier. This element is genuinely on screen now, so this reading
+        // is trustworthy: without it, the visitor's first scroll snaps the
+        // strip back toward 0 before continuing from the real position.
+        viewEls[name].querySelector(".gallery-viewport")._syncScrollSpring();
+      }
+      document.title = name === "home"
+        ? "Libby Li — Travel Photography & Photojournalism"
+        : `${categories[name].label} — Libby Li`;
+    }
+
+    // "Through the letters" transition: a full-screen clone of the hero
+    // wordmark rushes toward (or recedes from) the viewer while the view
+    // swaps underneath, hidden behind its coverage. Entering a gallery
+    // zooms the letters up and away; returning home reverses it.
+    const overlay = document.getElementById("transition-overlay");
+    let currentView = null;
+    let isTransitioning = false;
+    const TRANSITION_MS = 1050;
+    const SWAP_AT_ENTER = 220; // ms — early, while the overlay still fully covers
+    // Returning home plays the same motion backwards, so the view swaps at the
+    // mirrored moment: as far from the end as the enter swap is from the start.
+    const SWAP_AT_EXIT = TRANSITION_MS - SWAP_AT_ENTER;
+
+    // Leaving a gallery, the wordmark shrinks back to rest and the hero is
+    // revealed behind it. Showing a display:none view restarts its CSS
+    // animations, so without this the hero would be caught part-way through its
+    // entrance at the hand-off instead of sitting still to be matched.
+    function settleHero() {
+      document.querySelectorAll("#top .hero-line").forEach((el) => {
+        el.style.animation = "none";
+        el.style.opacity = "1";
+        el.style.transform = "none";
+      });
+    }
+
+    // The overlay centres its wordmark in the viewport, but the hero's sits a
+    // little higher — the label above and tagline below make that stack
+    // asymmetric. Left uncorrected the wordmark visibly jumps at the hand-off,
+    // so measure the gap while home is on screen and shift the overlay by it.
+    let heroOffset = 0;
+    function measureHeroOffset() {
+      const heroWord = [...document.querySelectorAll("#top .hero-line")]
+        .find((el) => el.textContent.trim() === "Libby");
+      const overlayWord = overlay.querySelector(".to-line");
+      if (!heroWord || !overlayWord) return;
+      const h = heroWord.getBoundingClientRect();
+      if (!h.height) return; // home not rendered — keep the last good value
+      const prev = overlay.style.transform;
+      overlay.style.transform = "none"; // measure the overlay's untransformed position
+      const o = overlayWord.getBoundingClientRect();
+      overlay.style.transform = prev;
+      heroOffset = Math.round(h.top - o.top);
+    }
+
+    const REVEAL_MS = 260;
+
+    // One motion, played forwards or backwards. Entering, the wordmark rushes
+    // out past the viewer (scale 1 -> 7, fading out); returning, it comes back
+    // from beyond the screen and settles (scale 7 -> 1, fading in). Starting
+    // the return at scale 7 rather than a small scale matters: the overlay is a
+    // solid cream panel, so any start below scale 1 would show its edges
+    // sweeping in as a growing rectangle.
+    function runTransition(targetName, direction) {
+      const entering = direction === "enter";
+      isTransitioning = true;
+      if (entering) measureHeroOffset(); // home is still on screen right now
+      const shift = `translateY(${heroOffset}px)`;
+
+      overlay.style.transition = "none";
+      overlay.style.opacity = entering ? "1" : "0";
+      overlay.style.transform = `${shift} scale(${entering ? 1 : 7})`;
+      void overlay.offsetWidth; // force reflow so the reset above applies before animating
+
+      requestAnimationFrame(() => {
+        overlay.style.transition = ""; // clear the inline override so the .animating rule can apply
+        overlay.classList.add("animating");
+        overlay.style.opacity = entering ? "0" : "1";
+        overlay.style.transform = `${shift} scale(${entering ? 7 : 1})`;
+      });
+
+      setTimeout(() => {
+        activateView(targetName);
+        if (!entering) settleHero();
+      }, entering ? SWAP_AT_ENTER : SWAP_AT_EXIT);
+
+      function reset() {
+        overlay.classList.remove("animating");
+        overlay.style.transition = "";
+        overlay.style.opacity = "0";
+        overlay.style.transform = "scale(1)";
+        isTransitioning = false;
+        routeFromHash(); // reconcile in case the hash changed again mid-transition
+      }
+
+      setTimeout(() => {
+        if (entering) return reset();
+        // The return ends with the overlay at rest over the hero. Cutting it
+        // away would pop the label, tagline and pills into existence all at
+        // once, so dissolve instead — the aligned wordmark holds still through
+        // it and the rest of the page fades up around it.
+        overlay.classList.remove("animating");
+        overlay.style.transition = `opacity ${REVEAL_MS}ms var(--ease-spring)`;
+        overlay.style.opacity = "0";
+        setTimeout(reset, REVEAL_MS);
+      }, TRANSITION_MS);
+    }
+
+    // Header nav stays reachable from inside a gallery too, so you can jump
+    // Travel -> Personal directly. That used to skip straight to
+    // activateView() with no transition at all — an instant cut that always
+    // landed the new strip at scrollLeft 0, which read as snapping to the
+    // far left with no warning. This plays a quick cream flash (too short
+    // for the wordmark tunnel to make sense — there's no hero on screen to
+    // zoom through) and, underneath it, carries over how far across the
+    // previous strip you'd scrolled rather than resetting to the start.
+    const CROSSFADE_MS = 420;
+    function runGalleryCrossfade(fromView, targetView) {
+      isTransitioning = true;
+      const fromVp = viewEls[fromView].querySelector(".gallery-viewport");
+      const fromMax = fromVp.scrollWidth - fromVp.clientWidth;
+      const scrollRatio = fromMax > 0 ? fromVp.scrollLeft / fromMax : 0;
+
+      overlay.classList.add("plain-swap");
+      overlay.style.transition = "none";
+      overlay.style.opacity = "0";
+      overlay.style.transform = "scale(1)";
+      void overlay.offsetWidth; // force reflow so the reset above applies before animating
+
+      requestAnimationFrame(() => {
+        overlay.style.transition = `opacity ${CROSSFADE_MS / 2}ms var(--ease-spring)`;
+        overlay.style.opacity = "1";
+      });
+
+      setTimeout(() => {
+        // Same trick as measureHeroOffset / the float-to-gallery flight:
+        // position the incoming strip while it's still hidden behind the
+        // opaque overlay, so there's nothing to see snap into place.
+        activateView(targetView);
+        const targetVp = viewEls[targetView].querySelector(".gallery-viewport");
+        const targetGrid = viewEls[targetView].querySelector(".gallery-track");
+        const targetMax = Math.max(0, targetGrid.scrollWidth - targetVp.clientWidth);
+        targetVp.scrollLeft = Math.round(scrollRatio * targetMax);
+        // activateView() already resynced the wheel/drag spring's closure
+        // state once, but that was a step earlier than this line — before
+        // this scrollLeft was set. Do it again now that it has been.
+        targetVp._syncScrollSpring();
+
+        overlay.style.transition = `opacity ${CROSSFADE_MS / 2}ms var(--ease-spring)`;
+        overlay.style.opacity = "0";
+        setTimeout(() => {
+          overlay.classList.remove("plain-swap");
+          isTransitioning = false;
+          routeFromHash(); // reconcile in case the hash changed again mid-transition
+        }, CROSSFADE_MS / 2);
+      }, CROSSFADE_MS / 2);
+    }
+
+    function routeFromHash() {
+      if (isTransitioning) return;
+      // The header sits above the lightbox, so its nav stays clickable while a
+      // photo is open. Dismiss the viewer on any route change, otherwise it
+      // would hang over the new view still showing the old gallery's photo.
+      closeLightbox();
+      const hash = location.hash.slice(1);
+      const targetView = GALLERY_VIEWS.includes(hash) ? hash : "home";
+
+      if (targetView !== currentView) {
+        if (currentView === null) {
+          // Initial load — land directly on the right view, no animation.
+          activateView(targetView);
+        } else if (currentView === "home" && targetView !== "home") {
+          runTransition(targetView, "enter");
+        } else if (currentView !== "home" && targetView === "home") {
+          runTransition("home", "exit");
+        } else {
+          runGalleryCrossfade(currentView, targetView);
+        }
+        currentView = targetView;
+      }
+    }
+
+    // ---------------- Float-to-gallery flight ----------------
+    // Clicking a gallery link from the hero: the floating photos belonging to
+    // that category fly into their landing spot in the gallery grid, visible
+    // the whole way — riding above the letters-transition overlay instead of
+    // vanishing when the view swaps beneath it — while the rest of the
+    // floating photos fade out. Purely a hero embellishment: it only fires
+    // when home is actually on screen, since that's the only place these
+    // floating photos exist.
+    const flightLayer = document.getElementById("flight-layer");
+
+    function prepareFloatFlight(targetCat) {
+      if (isTransitioning || currentView !== "home" || !floatCards.length) return;
+
+      if (REDUCE_MOTION) {
+        floatCards.forEach((card) => { card.querySelector(".float-card-inner").style.opacity = "0"; });
+        return;
+      }
+
+      const survivors = [], others = [];
+      floatCards.forEach((card) => (card.dataset.cat === targetCat ? survivors : others).push(card));
+      others.forEach((card) => { card.querySelector(".float-card-inner").style.opacity = "0"; });
+      if (!survivors.length) return;
+
+      // Origin rects first, while home is still the one active view — once
+      // it loses that class below, its whole subtree (these cards included)
+      // goes display:none and reads back as all zeros.
+      const origins = new Map(
+        survivors.map((card) => [card, card.querySelector(".photo-frame").getBoundingClientRect()])
+      );
+
+      // Now measure where each survivor lands: reveal the target grid
+      // invisibly (visibility, not display, so it still lays out) to read
+      // real rects — the same trick measureHeroOffset uses for the hero
+      // wordmark. Home has to lose "active" for this instant too — .view
+      // rules only collapse a view once nothing else claims the class, so
+      // leaving both active stacks them in normal flow and every measurement
+      // below lands a hero's-height too low. Nothing paints mid-swap: this
+      // is synchronous, so the browser never presents the in-between frame.
+      const section = viewEls[targetCat];
+      const grid = section.querySelector(".gallery-track");
+      const viewport = section.querySelector(".gallery-viewport");
+      viewEls.home.classList.remove("active");
+      section.classList.add("active");
+      section.style.visibility = "hidden";
+      fitCards(grid);
+
+      // The scatter can place a "recent" photo well outside the strip's
+      // starting scroll position. Bring it into view now, before measuring,
+      // so the photo actually lands somewhere the visitor can see rather
+      // than flying off past the edge of the screen.
+      const destEls = survivors
+        .map((card) => grid.querySelector(`.photo-card[data-index="${card.dataset.index}"]`))
+        .filter(Boolean);
+      if (destEls.length) {
+        const centers = destEls.map((d) => d.offsetLeft + d.offsetWidth / 2);
+        const avgCenter = centers.reduce((a, b) => a + b, 0) / centers.length;
+        const maxScroll = Math.max(0, grid.scrollWidth - viewport.clientWidth);
+        viewport.scrollLeft = clamp(avgCenter - viewport.clientWidth / 2, 0, maxScroll);
+        // This section goes back to display:none a few lines down — the
+        // wheel/drag spring's closure state doesn't need syncing to this
+        // value here; activateView() does that once the real transition
+        // makes this gallery visible for good (see the note there).
+      }
+
+      const flights = survivors
+        .map((card) => {
+          const dest = grid.querySelector(`.photo-card[data-index="${card.dataset.index}"]`);
+          if (!dest) return null;
+          return { card, dest, from: origins.get(card), to: dest.querySelector(".photo-frame").getBoundingClientRect() };
+        })
+        .filter(Boolean);
+
+      section.style.visibility = "";
+      section.classList.remove("active");
+      viewEls.home.classList.add("active"); // restore — the real transition re-claims it properly
+
+      flights.forEach(({ card, dest, from, to }) => {
+        const clone = document.createElement("div");
+        clone.className = "flight-card";
+        clone.style.left = `${to.left}px`;
+        clone.style.top = `${to.top}px`;
+        clone.style.width = `${to.width}px`;
+        clone.style.height = `${to.height}px`;
+        clone.innerHTML = `<img src="${card.querySelector("img").src}" alt="" />`;
+        flightLayer.appendChild(clone);
+
+        // FLIP: the clone's box is the destination; a transform makes it
+        // *look* like the origin, so only transform has to animate — the
+        // guardrail's "transform and opacity only," and no layout thrash.
+        const dx = from.left - to.left, dy = from.top - to.top;
+        const sx = from.width / to.width, sy = from.height / to.height;
+        clone.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+        card.style.display = "none"; // the flying clone represents it now
+
+        // The destination card lands already in place, so it shouldn't also
+        // play its own entrance stagger when the gallery reveals.
+        dest.classList.remove("reveal");
+        dest.dataset.flew = "1";
+
+        requestAnimationFrame(() => {
+          clone.style.transition = `transform ${TRANSITION_MS}ms var(--ease-spring)`;
+          clone.style.transform = "none";
+        });
+        setTimeout(() => clone.remove(), TRANSITION_MS + 80);
+      });
+    }
+
+    // Undoes prepareFloatFlight's traces once the hero is back on screen, so
+    // every visit starts from the same full set of floating photos.
+    function resetFloatLayer() {
+      floatCards.forEach((card) => {
+        card.style.display = "";
+        card.querySelector(".float-card-inner").style.opacity = "";
+      });
+      document.querySelectorAll(".photo-card[data-flew]").forEach((el) => {
+        el.classList.add("reveal");
+        el.removeAttribute("data-flew");
+      });
+      flightLayer.innerHTML = "";
+    }
+
+    // Capture phase, so this runs before the link's default action changes
+    // location.hash (hashchange itself fires asynchronously either way).
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a");
+      if (!a) return;
+      const hash = (a.getAttribute("href") || "").slice(1);
+      if (GALLERY_VIEWS.includes(hash)) prepareFloatFlight(hash);
+    }, true);
+
+    window.addEventListener("hashchange", routeFromHash);
+    routeFromHash();
+  </script>
+</body>
