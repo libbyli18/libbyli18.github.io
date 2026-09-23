@@ -81,6 +81,17 @@
   /* ---------- Header ---------- */
   .site-header {
     transition: background-color 0.4s ease;
+    /* The header's own box spans the full viewport width at a fixed z-index
+       (9999) even where nothing is rendered in it (the whole right side, on
+       desktop, since the mobile menu button is hidden there) — which was
+       silently swallowing clicks meant for the lightbox's close button
+       underneath it, since z-index only orders full stacking contexts, not
+       "empty" regions within one. Reopening pointer-events on just the real
+       interactive children lets clicks fall through everywhere else. */
+    pointer-events: none;
+  }
+  .site-header a, .site-header button {
+    pointer-events: auto;
   }
 
   .nav-link {
@@ -437,138 +448,185 @@
      motion only makes sense relative to it. The wordmark clone still lives
      inside the overlay regardless, so it has to be hidden explicitly here or
      it would flash into view along with the fade. */
-  #transition-overlay.plain-swap .to-line { visibility: hidden; }
-  /* Sizing mirrors the hero wordmark exactly — same steps as its Tailwind
-     classes (base 16vw, sm 9rem, md 11rem, lg 12.5rem). A clamp() here looked
-     equivalent but drifted between breakpoints, so the letters changed size at
-     the hand-off when the overlay settles onto the real hero. */
-  #transition-overlay .to-line {
-    display: block;
-    /* Full-width centred text, matching how the hero centres its wordmark.
-       Shrink-to-fit flex centring lands a few px off, because the negative
-       letter-spacing leaves trailing space inside the box. */
-    width: 100%;
-    text-align: center;
-    /* Must stay identical to the hero's font-name stack — the overlay settles
-       onto the real wordmark at the hand-off, so any metric difference shows
-       up as the letters jumping. */
-    font-family: "EB Garamond", Garamond, Georgia, serif;
-    font-size: 16vw;
-    line-height: 0.86;
-    letter-spacing: -0.01em;
-    text-transform: uppercase;
-    font-weight: 500;
-    color: #1B1815;
-  }
-  #transition-overlay .to-line.to-italic {
-    font-style: italic;
-    font-weight: 400;
-    /* Colour inherited from .to-line — both rows are ink, like the hero's. */
-    /* em, so the two cap rows keep the same optical gap at every size —
-       matches the hero's -mt-[0.115em]. */
-    margin-top: -0.115em;
-  }
-  @media (min-width: 640px) {
-    #transition-overlay .to-line { font-size: 9rem; }
-  }
-  @media (min-width: 768px) { #transition-overlay .to-line { font-size: 11rem; } }
-  @media (min-width: 1024px) { #transition-overlay .to-line { font-size: 12.5rem; } }
+  #transition-overlay.plain-swap .hero-badge { visibility: hidden; }
 
-  /* ---------- Hero float layer ---------- */
-  /* Recent photos drifting behind the wordmark. Sits below the hero copy
-     (z-10 there vs. z-0 here) and clipped by #top's own overflow-hidden, so
-     drift and parallax can never push a card past the viewport edge. */
-  .hero-float-layer {
+  /* ---------- Circular wordmark badge ---------- */
+  /* One shared class sizes both the hero's live badge and its overlay twin
+     identically and automatically — no second set of breakpoints to keep in
+     sync by hand. "LIBBY" curves along the top arc, "LI" along the bottom,
+     the way a photographer's embossing stamp or a lens ring sets curved
+     text — a small, quiet insignia rather than the sprawling flat wordmark
+     this replaces. */
+  .hero-badge {
+    display: block;
+    width: clamp(130px, 20vw, 200px);
+    height: clamp(130px, 20vw, 200px);
+    overflow: visible;
+  }
+  .badge-ring {
+    fill: none;
+    stroke: #1B1815;
+    stroke-width: 1;
+    opacity: 0.55;
+  }
+  .badge-dot { fill: #1B1815; opacity: 0.55; }
+  .badge-text {
+    font-family: "EB Garamond", Garamond, Georgia, serif;
+    font-size: 27px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    fill: #1B1815;
+  }
+  .badge-text-italic { font-style: italic; font-weight: 400; }
+
+  /* ---------- Hero orbit ---------- */
+  /* The hero's centerpiece: recent photos revolve slowly around the badge.
+     Sits below the hero copy (z-10 there vs. z-0 here) and clipped by #top's
+     own overflow-hidden, so the ring can never push a card past the edge. */
+  .hero-orbit {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
   }
-  .float-card {
+  .orbit-card {
     position: absolute;
+    left: 50%;
+    top: 50%;
+    width: clamp(70px, 9vw, 130px);
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
     display: block;
-    width: clamp(64px, 7.5vw, 132px);
-    will-change: transform;
-    /* JS drives this directly each frame, like the cursor ring — a CSS
-       transition here would fight the per-frame lerp instead of smoothing it.
-       Hover/active feedback below lives on the .photo-frame child instead,
-       so it has its own transform to animate without a collision. */
     pointer-events: auto;
     cursor: pointer;
-    text-decoration: none;
+    /* Angle/radius place it on the ring; the counter-rotate keeps the card
+       itself upright regardless of where it sits. All three custom
+       properties are rewritten every frame from JS — a CSS transition here
+       would fight that per-frame update instead of smoothing it, the same
+       reason the cursor ring and gallery scatter both skip one too. */
+    transform: translate(-50%, -50%) rotate(var(--orbit-angle, 0deg))
+      translate(var(--orbit-radius, 200px)) rotate(calc(-1 * var(--orbit-angle, 0deg)))
+      scale(var(--orbit-scale, 1));
   }
-  .float-card .photo-frame {
-    position: relative;
-    border-radius: 2px;
-    overflow: hidden;
+  .orbit-card .photo-frame {
     box-shadow: 0 1px 2px rgba(27,24,21,0.05), 0 18px 34px -20px rgba(27,24,21,0.4);
-    transition: transform 0.4s var(--ease-spring), box-shadow 0.4s var(--ease-spring);
   }
-  .float-card:hover .photo-frame {
-    transform: scale(1.045);
-    box-shadow: 0 4px 10px rgba(27,24,21,0.1), 0 26px 46px -20px rgba(27,24,21,0.5);
+  .orbit-card:focus-visible {
+    outline: 2px solid #1B1815;
+    outline-offset: 3px;
+    border-radius: 4px;
   }
-  .float-card:active .photo-frame { transform: scale(0.98); }
-  .float-card:hover .float-card-inner,
-  .float-card:focus-visible .float-card-inner {
-    opacity: 0.92;
-  }
-  /* Mobile only: height is capped here instead of left to the image's own
-     aspect ratio (the gallery cards' and desktop float cards' approach). A
-     tall portrait placeholder at mobile's narrower widths could otherwise
-     run past whatever text-free band its position was measured against —
-     worse on a short viewport than a tall one, which no single hand-placed
-     position can account for on its own. object-fit crops the image to fit.
-     Desktop has the vertical room to just let photos be their own shape. */
-  @media (max-width: 640px) {
-    .float-card .photo-frame { height: clamp(52px, 8vh, 128px); }
-  }
-  .float-card img {
+  .orbit-card img {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
     filter: saturate(0.92);
   }
-  /* The autonomous drift lives on this inner wrapper so it composes cleanly
-     with the outer element's JS-driven parallax transform instead of
-     overwriting it. Duration/delay/amplitude are set per-card inline for a
-     scattered, unsynchronised feel. */
-  .float-card-inner {
-    animation-name: floatDrift;
-    animation-timing-function: ease-in-out;
-    animation-iteration-count: infinite;
-    opacity: 0.64;
-    transition: opacity 0.4s var(--ease-spring);
-  }
-  @keyframes floatDrift {
-    0%, 100% { transform: translate(0, 0) rotate(var(--fr, 1.4deg)); }
-    50% { transform: translate(var(--fx, 14px), var(--fy, -18px)) rotate(calc(var(--fr, 1.4deg) * -1)); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .float-card-inner { animation: none; }
+  @media (max-width: 640px) {
+    .orbit-card { width: clamp(58px, 15vw, 92px); }
   }
 
-  /* ---------- Flight layer ---------- */
-  /* Where a floating card lives while it flies into the gallery it belongs
-     to — above the transition overlay, so the photo stays visible through
-     the letters rushing past rather than disappearing when the view swaps. */
-  #flight-layer {
+  /* ---------- Orbit flight + enlarged view ---------- */
+  /* The clone that "blows" from a card's ring position to screen centre —
+     positioned in JS every frame along a randomised curve, so only left/top/
+     width/height/transform are ever touched here, never a CSS animation. */
+  .orbit-flight-card {
     position: fixed;
-    inset: 0;
     z-index: 10000;
-    pointer-events: none;
-  }
-  .flight-card {
-    position: fixed;
     border-radius: 2px;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(27,24,21,0.08), 0 28px 50px -20px rgba(27,24,21,0.45);
+    box-shadow: 0 8px 20px rgba(27,24,21,0.12), 0 32px 60px -20px rgba(27,24,21,0.5);
+    pointer-events: none;
   }
-  .flight-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .orbit-flight-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  /* Where the card settles: a plain, single-photo view — deliberately
+     simpler than the full lightbox (no scrolling through a set), since the
+     point of this one is the arrival, not browsing. */
+  #orbit-view {
+    position: fixed;
+    inset: 0;
+    /* Above the header (9999) — its box spans the full width even where it
+       has no visible content, and would otherwise silently steal clicks
+       meant for the close button in that top-right corner. Below the
+       cursor ring (10001), same as the letters-transition overlay. */
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(246, 242, 232, 0.97);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s var(--ease-spring);
+  }
+  #orbit-view.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+  #orbit-view .photo-frame,
+  .orbit-view-frame {
+    position: relative;
+    max-width: 72vw;
+    max-height: 78vh;
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(27,24,21,0.12), 0 40px 70px -24px rgba(27,24,21,0.5);
+  }
+  #orbit-view img {
+    display: block;
+    max-width: 72vw;
+    max-height: 78vh;
+    object-fit: contain;
+  }
+  .orbit-view-count {
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(27,24,21,0.72);
+    color: #F6F2E8;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  #orbit-view-close {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(27,24,21,0.2);
+    background: #F6F2E8;
+    color: #1B1815;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  #orbit-view-close:hover { border-color: rgba(27,24,21,0.42); }
+  #orbit-view-close:focus-visible { outline: 2px solid #1B1815; outline-offset: 2px; }
 </style>
 
 <body class="font-body text-ink bg-cream">
+
+  <!-- Shared geometry for the circular wordmark badge below — one pair of
+       arcs, referenced by both the hero's live badge and its transition-
+       overlay twin, so their curves can never drift out of sync. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <path id="badge-arc-top" d="M 24.66,79.81 A 78,78 0 0 1 175.34,79.81" />
+      <path id="badge-arc-bottom" d="M 24.66,120.19 A 78,78 0 0 0 175.34,120.19" />
+    </defs>
+  </svg>
+
 
   <div class="grain"></div>
   <div class="rule-top"></div>
@@ -582,12 +640,30 @@
 
   <!-- ================= PAGE TRANSITION OVERLAY ================= -->
   <div id="transition-overlay" aria-hidden="true">
-    <span class="to-line">Libby</span>
-    <span class="to-line to-italic">Li</span>
+    <svg class="hero-badge" viewBox="0 0 200 200">
+      <circle class="badge-ring" cx="100" cy="100" r="92" />
+      <circle class="badge-dot" cx="22" cy="100" r="2.4" />
+      <circle class="badge-dot" cx="178" cy="100" r="2.4" />
+      <text class="badge-text">
+        <textPath href="#badge-arc-top" startOffset="50%" text-anchor="middle">Libby</textPath>
+      </text>
+      <text class="badge-text badge-text-italic">
+        <textPath href="#badge-arc-bottom" startOffset="50%" text-anchor="middle">Li</textPath>
+      </text>
+    </svg>
   </div>
 
-  <!-- ================= FLOAT-TO-GALLERY FLIGHT LAYER ================= -->
-  <div id="flight-layer" aria-hidden="true"></div>
+  <!-- ================= ORBIT ENLARGED VIEW ================= -->
+  <!-- A clicked orbit card "blows" here (see openOrbitView) and settles into
+       a plain single-photo view — deliberately simpler than the scrollable
+       lightbox used everywhere else, since the point is the arrival. -->
+  <div id="orbit-view" aria-hidden="true">
+    <button id="orbit-view-close" aria-label="Close">✕</button>
+    <div class="orbit-view-frame">
+      <img id="orbit-view-img" src="" alt="" />
+      <span id="orbit-view-count" class="orbit-view-count" hidden></span>
+    </div>
+  </div>
 
   <!-- ================= HEADER ================= -->
   <header id="site-header" class="site-header fixed top-2 left-0 right-0 z-[9999] px-5 sm:px-8 py-4">
@@ -616,27 +692,33 @@
   <!-- ================= HERO ================= -->
   <section id="top" class="relative h-[100dvh] flex flex-col items-center justify-center px-6 text-center overflow-hidden">
 
-    <!-- Recent work, adrift behind the wordmark. Built in JS (below) from
-         each category's own images, so it stays in sync with the galleries
-         with nothing to keep in parallel by hand. Each photo is a real link
-         into its category, so no aria-hidden here — that would hide focusable
-         content from assistive tech while leaving it reachable by keyboard. -->
-    <div class="hero-float-layer" id="hero-float"></div>
+    <!-- Recent work, orbiting the badge. Built in JS (below) from each
+         category's own images, so it stays in sync with the galleries with
+         nothing to keep in parallel by hand. Real buttons, not decorative
+         divs, so no aria-hidden here — that would hide focusable content
+         from assistive tech while leaving it reachable by keyboard. -->
+    <div class="hero-orbit" id="hero-orbit"></div>
 
     <p class="hero-line from-top font-mono text-[11px] sm:text-xs tracking-[0.3em] uppercase text-ink-soft mb-6 relative z-10">
       Photographer
     </p>
 
-    <!-- Tracking sits on the spans, not the h1: an em there would resolve
-         against the h1's inherited 16px and all but vanish, and the transition
-         overlay applies it at display size — leaving the two a glyph-width
-         apart at the hand-off. -->
-    <!-- Uppercased in CSS, not in the markup: the transition overlay finds the
-         hero wordmark by matching its text, so the source text has to stay
-         "Libby". -->
-    <h1 class="font-name leading-[0.86] uppercase relative z-10">
-      <span class="hero-line from-top tracking-[-0.01em] text-[16vw] sm:text-[9rem] md:text-[11rem] lg:text-[12.5rem] font-medium">Libby</span>
-      <span class="hero-line from-bottom italic tracking-[-0.01em] text-[16vw] sm:text-[9rem] md:text-[11rem] lg:text-[12.5rem] font-normal -mt-[0.115em]">Li</span>
+    <!-- The transition overlay settles onto this by matching its
+         .hero-badge bounding box (see measureHeroOffset), not by reading
+         text — so unlike the old flat wordmark, nothing here depends on the
+         exact string "Libby" appearing verbatim. -->
+    <h1 class="relative z-10 flex justify-center">
+      <svg class="hero-badge hero-line from-top" viewBox="0 0 200 200" role="img" aria-label="Libby Li, photographer">
+        <circle class="badge-ring" cx="100" cy="100" r="92" />
+        <circle class="badge-dot" cx="22" cy="100" r="2.4" />
+        <circle class="badge-dot" cx="178" cy="100" r="2.4" />
+        <text class="badge-text" aria-hidden="true">
+          <textPath href="#badge-arc-top" startOffset="50%" text-anchor="middle">Libby</textPath>
+        </text>
+        <text class="badge-text badge-text-italic" aria-hidden="true">
+          <textPath href="#badge-arc-bottom" startOffset="50%" text-anchor="middle">Li</textPath>
+        </text>
+      </svg>
     </h1>
 
     <!-- Side pills -->
@@ -778,7 +860,54 @@
     // comments). A category with none yet just falls through to the
     // placeholder generator below — swap categories over one at a time,
     // nothing here requires doing it all at once.
-    const REAL_PHOTOS = window.REAL_PHOTOS || {};
+    // Everything from here on used to run synchronously the instant this
+    // script parsed. It's now wrapped in one async function so live photos
+    // from the upload API (Phase 5) can be merged in before the single
+    // rendering pass runs — the scatter/scaling math below (scaleFor,
+    // layoutSlot, trackWidthFor) all depend on each category's *final*
+    // image count, so it has to see the merged total, not render once for
+    // local photos and again later for live ones.
+    (async function boot() {
+      async function fetchWithTimeout(url, ms) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        try {
+          return await fetch(url, { signal: controller.signal });
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      // Live-uploaded photos (Phase 5's admin page + upload API) merge in
+      // alongside the folder-based ones from photos-data.js — both produce
+      // the same {sets:[{w,h,t,src,clip}]} card shape, so nothing past this
+      // point can tell which source a given card came from. The VM being
+      // slow, down, or a category having nothing uploaded yet all just
+      // leave that category exactly as photos-data.js already left it.
+      const API_BASE = "https://upload.libbyli.me";
+      const REAL_PHOTOS = { ...(window.REAL_PHOTOS || {}) };
+      await Promise.all(
+        Object.keys(CATEGORY_META).map(async (key) => {
+          try {
+            const res = await fetchWithTimeout(`${API_BASE}/api/photos?category=${key}`, 4000);
+            if (!res.ok) return;
+            const cards = await res.json();
+            if (!cards.length) return;
+            const liveCards = cards.map((card) => ({
+              sets: card.photos.map((p) => ({
+                w: p.width,
+                h: p.height,
+                t: card.title,
+                src: `${API_BASE}/uploads/${p.filename}`,
+                clip: false,
+              })),
+            }));
+            REAL_PHOTOS[key] = [...(REAL_PHOTOS[key] || []), ...liveCards];
+          } catch {
+            // Offline, timed out, or the API errored — fall back silently.
+          }
+        })
+      );
 
     const categories = Object.fromEntries(
       Object.entries(CATEGORY_META).map(([key, meta]) => {
@@ -1202,154 +1331,208 @@
       });
     }
 
-    // ---------------- Hero float layer ----------------
-    // Each category's most recent photos drift behind the wordmark, tiled
-    // densely enough to fill most of the hero rather than read as a few
-    // scattered accents. "Most recent" means the tail of that category's own
-    // images array — once real photos replace the placeholders, whichever
-    // get appended last surface here automatically, nothing to keep in sync
-    // by hand. Category identity (dataset.cat/index) is what the
-    // click-triggered flight below uses to find each photo's home gallery.
-    const FLOAT_SIZE_WIDTH = {
-      s: "clamp(72px, 7vw, 118px)",
-      m: "clamp(96px, 9.5vw, 160px)",
-      l: "clamp(130px, 13vw, 210px)",
-    };
-    // On a narrow phone the hero copy's own line height eats most of the
-    // screen (label through bottom nav routinely spans 35%–95% of the
-    // height), unlike desktop where it's a compact island — so there's no
-    // wide "sides" to scatter into without sitting behind thin, low-contrast
-    // text like the mono label. Fewer photos, confined to the open band
-    // between the header and where the wordmark starts, keeps every one of
-    // them clear of text entirely rather than fighting the layout per photo.
+    // ---------------- Hero orbit ----------------
+    // The hero's centerpiece: recent photos/mini-galleries drift in a slow,
+    // continuous ring around the circular wordmark badge. Hovering a card
+    // enlarges it and nudges its neighbours apart to make room; clicking one
+    // sends it tumbling to screen centre along a randomised path (see
+    // "Orbit card flight" below) to view it large.
     const MOBILE_HERO = window.matchMedia("(max-width: 640px)").matches;
-    const HERO_FLOAT_PER_CAT = MOBILE_HERO ? 3 : 6;
-    // Hand-placed scatter, not a grid — sits behind the type (z-0 vs. the
-    // hero copy's z-10), so drifting under a letter reads as photos peeking
-    // out rather than clutter competing with the name. Top-row y is a
-    // percentage of viewport height, but the fixed header's own height
-    // isn't — on a short viewport the same percentage lands much closer to
-    // it in real pixels, and the header has no background to protect its
-    // nav links the way a pill does. 16%/18% floors clear it down to about
-    // a 620px-tall viewport, well past anything this site targets.
-    //
-    // The big wordmark itself is thick, bold, and huge — a photo behind a
-    // stroke of it reads fine, same as it already does at the edges where
-    // letters overhang a card. What can't take a photo behind it is the
-    // thin mono label above and the nav line below, both a fraction of the
-    // letter-strokes' weight and contrast. So the middle third of the hero
-    // is only off-limits in two shallow bands (around the label, around
-    // that bottom line) — everywhere else, including straight behind
-    // "Libby Li", is fair game, which is what lets the scatter reach the
-    // centre instead of leaving it as a hole in the middle of the field.
-    // One row above the label rather than two: with height pinned to ~8-9%
-    // of viewport height (see the media query above), two stacked rows plus
-    // margins need more clearance than fits between the header and the
-    // label on a short phone — one row leaves real headroom on both sides
-    // at every height this site targets.
-    const FLOAT_POS = MOBILE_HERO
-      ? [
-          [3, 19, "s"], [18, 21, "m"], [36, 18, "s"], [62, 20, "m"], [80, 22, "s"], [96, 19, "s"],
-          [40, 50, "s"], [60, 56, "s"], [50, 64, "s"],
-        ]
-      : [
-          [4, 17, "m"], [18, 16, "s"], [32, 16, "s"], [66, 16, "m"], [84, 17, "l"], [96, 24, "s"],
-          [6, 40, "l"], [20, 62, "s"], [8, 85, "m"], [23, 93, "s"],
-          [78, 36, "s"], [93, 48, "m"], [80, 72, "l"], [92, 89, "s"],
-          [42, 40, "s"], [58, 45, "s"], [46, 62, "m"], [56, 67, "s"],
-        ];
-    const heroFloatLayer = document.getElementById("hero-float");
-    const floatCards = [];
-    (function buildHeroFloat() {
-      const rng = makeRng(seedFrom("hero-float") ^ LAYOUT_SEED);
+    const ORBIT_PER_CAT = MOBILE_HERO ? 3 : 4;
+    const orbitLayer = document.getElementById("hero-orbit");
+    const orbitCards = [];
+
+    (function buildOrbit() {
+      const rng = makeRng(seedFrom("hero-orbit") ^ LAYOUT_SEED);
       const entries = [];
       Object.entries(categories).forEach(([key, cat]) => {
-        const recent = cat.images.slice(-HERO_FLOAT_PER_CAT);
-        // A category with fewer real photos than HERO_FLOAT_PER_CAT gets all
-        // of them — recent.length, not HERO_FLOAT_PER_CAT, is how many slice()
-        // actually returned, so it's the only correct base for the offset below.
-        recent.forEach((item, ri) => {
-          const index = cat.images.length - recent.length + ri;
-          entries.push({ key, cat, item, index });
-        });
+        const recent = cat.images.slice(-ORBIT_PER_CAT);
+        recent.forEach((item) => entries.push({ key, cat, item }));
       });
-      // Which photo lands in which fixed FLOAT_POS spot is reshuffled per
-      // load — the spots themselves (hand-placed to clear the hero copy)
-      // stay fixed.
-      shuffled(entries, rng).forEach(({ key, cat, item, index }, slot) => {
-        const [xPct, yPct, size] = FLOAT_POS[slot % FLOAT_POS.length];
+      const ordered = shuffled(entries, rng);
+      const n = ordered.length;
 
-        // A real link, not a decorative div — clicking one enters that
-        // photo's category, flying it (and the rest of its category's
-        // floats) into the gallery via the same handler the nav pills use.
-        const el = document.createElement("a");
-        el.href = `#${key}`;
-        el.setAttribute("aria-label", `View ${cat.label} photos`);
-        el.className = "float-card";
-        el.dataset.cat = key;
-        el.dataset.index = index;
-        el.style.left = `${xPct}%`;
-        el.style.top = `${yPct}%`;
-        el.style.width = FLOAT_SIZE_WIDTH[size];
-        el._rot = ((rng() - 0.5) * 6).toFixed(2); // fixed per-card tilt, degrees
+      ordered.forEach(({ key, cat, item }, i) => {
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = "orbit-card";
+        el.setAttribute("aria-label", `View ${item.t || cat.label} photo${item.sets.length > 1 ? "s" : ""}`);
+        el.dataset.baseAngle = (i / n) * 360;
 
         const inner = document.createElement("div");
-        inner.className = "float-card-inner";
-        const dur = 20 + rng() * 14; // 20–34s, unsynchronised per card
-        inner.style.animationDuration = `${dur.toFixed(2)}s`;
-        inner.style.animationDelay = `-${(rng() * dur).toFixed(2)}s`; // random phase
-        inner.style.setProperty("--fx", `${(10 + rng() * 12).toFixed(1)}px`);
-        inner.style.setProperty("--fy", `${(-(10 + rng() * 14)).toFixed(1)}px`);
-        inner.style.setProperty("--fr", `${(1 + rng() * 1.6).toFixed(2)}deg`);
-        // Desktop keeps the image's natural aspect ratio, same as the
-        // gallery. Mobile omits it — that frame's height is pinned by a
-        // CSS clamp() instead (see .float-card .photo-frame), and
-        // object-fit:cover crops whatever lands in it.
-        const frameStyle = MOBILE_HERO ? "" : ` style="aspect-ratio:${item.w}/${item.h}"`;
+        inner.className = "orbit-card-inner";
         inner.innerHTML = `
-          <div class="photo-frame"${frameStyle}>
+          <div class="photo-frame" style="aspect-ratio:${item.w}/${item.h}">
             <img src="${imgUrl(cat, item)}" alt="" />
+            ${item.sets.length > 1 ? `<span class="set-badge font-mono">${item.sets.length}</span>` : ""}
           </div>
         `;
         el.appendChild(inner);
-        heroFloatLayer.appendChild(el);
-        floatCards.push(el);
+        el._item = item;
+        el._cat = cat;
+        orbitLayer.appendChild(el);
+        orbitCards.push(el);
       });
     })();
 
-    // Mouse parallax: cards travel toward/away from the pointer at different
-    // depths — close to tracking it directly, with just enough lag that it
-    // reads as trailing rather than locked to the cursor. A plain per-frame
-    // lerp with no CSS transition, same as the cursor ring — a transition
-    // here would fight the lerp's own smoothing.
-    if (FINE_POINTER && !REDUCE_MOTION && floatCards.length) {
-      const heroEl = document.getElementById("top");
-      let txF = 0, tyF = 0, pxF = 0, pyF = 0, floatRaf = null;
+    // One continuous rotation, plus a per-card angular displacement that
+    // eases toward "pushed away from the hovered card" — both applied every
+    // frame, since the constant rotation means every card's position is
+    // always moving, hover or not.
+    const ORBIT_PERIOD_MS = 100000; // one full revolution
+    const ORBIT_RADIUS = "clamp(150px, 29vw, 320px)";
+    orbitLayer.style.setProperty("--orbit-radius", ORBIT_RADIUS);
+    let orbitHoverIndex = null;
+    let orbitFrozen = false; // true while a card is flying to/resting at centre
+    const n = orbitCards.length;
+    const orbitDisplace = orbitCards.map(() => 0); // current eased degrees, one per card
+    const orbitScaleState = orbitCards.map(() => 1); // current eased scale, one per card
 
-      function floatTick() {
-        pxF += (txF - pxF) * 0.11;
-        pyF += (tyF - pyF) * 0.11;
-        floatCards.forEach((el, i) => {
-          const depth = 90 + (i % 3) * 45; // px of travel per unit of pointer offset
-          el.style.transform = `translate(${(pxF * depth).toFixed(2)}px, ${(pyF * depth).toFixed(2)}px) rotate(${el._rot}deg)`;
-        });
-        floatRaf = (Math.abs(txF - pxF) > 0.02 || Math.abs(tyF - pyF) > 0.02)
-          ? requestAnimationFrame(floatTick)
-          : null;
-      }
-      function wakeFloat() { if (floatRaf === null) floatRaf = requestAnimationFrame(floatTick); }
+    function orbitTick(now) {
+      const spin = orbitFrozen ? orbitTick._holdSpin ?? 0 : (now / ORBIT_PERIOD_MS) * 360;
+      if (!orbitFrozen) orbitTick._holdSpin = spin;
 
-      heroEl.addEventListener("pointermove", (e) => {
-        const r = heroEl.getBoundingClientRect();
-        txF = ((e.clientX - r.left) / r.width - 0.5) * 2;
-        tyF = ((e.clientY - r.top) / r.height - 0.5) * 2;
-        wakeFloat();
-      }, { passive: true });
-      heroEl.addEventListener("pointerleave", () => { txF = 0; tyF = 0; wakeFloat(); }, { passive: true });
-    } else {
-      // No parallax on this device, but the fixed per-card tilt still applies.
-      floatCards.forEach((el) => { el.style.transform = `rotate(${el._rot}deg)`; });
+      orbitCards.forEach((el, i) => {
+        // Signed circular distance to the hovered card, in ring positions —
+        // 0 is the hovered card itself; sign says which side of it this
+        // card sits on, so its two neighbours part in opposite directions
+        // rather than both sliding the same way.
+        let diff = orbitHoverIndex === null ? Infinity : i - orbitHoverIndex;
+        if (diff > n / 2) diff -= n;
+        if (diff < -n / 2) diff += n;
+        const dist = Math.abs(diff);
+        const targetPush = dist === 1 ? 26 : dist === 2 ? 11 : 0;
+        const targetDisplace = Math.sign(diff) * targetPush;
+        orbitDisplace[i] += (targetDisplace - orbitDisplace[i]) * 0.14;
+
+        const isHovered = i === orbitHoverIndex;
+        orbitScaleState[i] += ((isHovered ? 1.55 : 1) - orbitScaleState[i]) * 0.15;
+
+        const angleDeg = parseFloat(el.dataset.baseAngle) + spin + orbitDisplace[i];
+        el.style.setProperty("--orbit-angle", `${angleDeg.toFixed(2)}deg`);
+        el.style.setProperty("--orbit-scale", orbitScaleState[i].toFixed(3));
+        el.style.zIndex = isHovered ? 5 : 1;
+      });
+      requestAnimationFrame(orbitTick);
     }
+
+    if (orbitCards.length) {
+      if (REDUCE_MOTION) {
+        // Static ring, no spin — hover/click still work, just no ambient motion.
+        orbitCards.forEach((el, i) => {
+          const angleDeg = (i / orbitCards.length) * 360;
+          el.style.setProperty("--orbit-angle", `${angleDeg}deg`);
+          el.style.setProperty("--orbit-scale", 1);
+        });
+      } else {
+        requestAnimationFrame(orbitTick);
+      }
+      orbitCards.forEach((el, i) => {
+        el.addEventListener("pointerenter", () => { orbitHoverIndex = i; });
+        el.addEventListener("pointerleave", () => { if (orbitHoverIndex === i) orbitHoverIndex = null; });
+        el.addEventListener("focus", () => { orbitHoverIndex = i; });
+        el.addEventListener("blur", () => { if (orbitHoverIndex === i) orbitHoverIndex = null; });
+      });
+    }
+
+    // ---------------- Orbit card flight ----------------
+    // Clicking a card sends a clone of it drifting to screen centre along a
+    // randomised, gently curved path — "blowing like paper" rather than
+    // sliding there in a straight line — before settling into a plain,
+    // single-photo enlarged view. Reduced motion skips straight to the
+    // enlarged view with no flight, same convention as everywhere else here.
+    const orbitView = document.getElementById("orbit-view");
+    const orbitViewImg = document.getElementById("orbit-view-img");
+    const orbitViewCount = document.getElementById("orbit-view-count");
+    let orbitFlightCard = null;
+
+    function cubicPoint(p0, p1, p2, p3, t) {
+      const u = 1 - t;
+      return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
+    }
+
+    function openOrbitView(card) {
+      if (orbitFrozen) return;
+      orbitFrozen = true;
+      orbitFlightCard = card;
+      const item = card._item;
+      const from = card.querySelector(".photo-frame").getBoundingClientRect();
+
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const maxW = Math.min(vw * 0.72, 720), maxH = Math.min(vh * 0.78, 720);
+      const scale = Math.min(maxW / item.w, maxH / item.h);
+      const toW = item.w * scale, toH = item.h * scale;
+      const to = { left: (vw - toW) / 2, top: (vh - toH) / 2, width: toW, height: toH };
+
+      card.style.visibility = "hidden"; // the flying clone stands in for it now
+      orbitViewImg.src = imgUrl(card._cat, item);
+      const multi = item.sets.length > 1;
+      orbitViewCount.textContent = multi ? `1 / ${item.sets.length}` : "";
+      orbitViewCount.hidden = !multi;
+
+      if (REDUCE_MOTION) {
+        orbitView.classList.add("is-open");
+        return;
+      }
+
+      // A cubic bezier from origin to destination, perturbed by a random
+      // midpoint and control points — a little different every time, the
+      // way a dropped photo would drift rather than fly a fixed line.
+      const midX = (from.left + to.left) / 2 + (Math.random() - 0.5) * 260;
+      const midY = (from.top + to.top) / 2 - 80 - Math.random() * 120;
+      const c1x = from.left + (midX - from.left) * 0.5 + (Math.random() - 0.5) * 140;
+      const c1y = from.top + (midY - from.top) * 0.5;
+      const c2x = to.left + (midX - to.left) * 0.5 + (Math.random() - 0.5) * 140;
+      const c2y = to.top + (midY - to.top) * 0.5;
+      const startRot = (Math.random() - 0.5) * 30;
+      const wobbleRot = startRot + (Math.random() - 0.5) * 50;
+
+      const clone = document.createElement("div");
+      clone.className = "orbit-flight-card";
+      clone.innerHTML = `<img src="${imgUrl(card._cat, item)}" alt="" />`;
+      clone.style.left = `${from.left}px`;
+      clone.style.top = `${from.top}px`;
+      clone.style.width = `${from.width}px`;
+      clone.style.height = `${from.height}px`;
+      document.body.appendChild(clone);
+
+      const DUR = 800;
+      const t0 = performance.now();
+      function step(now) {
+        const t = Math.min(1, (now - t0) / DUR);
+        const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        clone.style.left = `${cubicPoint(from.left, c1x, c2x, to.left, e)}px`;
+        clone.style.top = `${cubicPoint(from.top, c1y, c2y, to.top, e)}px`;
+        clone.style.width = `${from.width + (to.width - from.width) * e}px`;
+        clone.style.height = `${from.height + (to.height - from.height) * e}px`;
+        const rot = startRot + (wobbleRot - startRot) * Math.sin(e * Math.PI);
+        clone.style.transform = `rotate(${(rot * (1 - e)).toFixed(2)}deg)`;
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          clone.remove();
+          orbitView.classList.add("is-open");
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function closeOrbitView() {
+      orbitView.classList.remove("is-open");
+      if (orbitFlightCard) {
+        orbitFlightCard.style.visibility = "";
+        orbitFlightCard = null;
+      }
+      orbitHoverIndex = null; // the card was hidden, not un-hovered — clear it explicitly
+      orbitFrozen = false;
+    }
+
+    orbitCards.forEach((el) => el.addEventListener("click", () => openOrbitView(el)));
+    document.getElementById("orbit-view-close").addEventListener("click", closeOrbitView);
+    orbitView.addEventListener("click", (e) => { if (e.target === orbitView) closeOrbitView(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && orbitView.classList.contains("is-open")) closeOrbitView();
+    });
 
     // ---------------- Ring cursor ----------------
     // Replaces the pointer with an outlined circle that trails slightly, and
@@ -1557,7 +1740,6 @@
 
     function activateView(name) {
       Object.entries(viewEls).forEach(([key, el]) => el.classList.toggle("active", key === name));
-      if (name === "home") resetFloatLayer(); // undo any leftover flight/fade so the hero looks whole again
       if (name !== "home") {
         // Only measurable now that the view is on screen — a display:none
         // gallery reports zero offsets.
@@ -1611,9 +1793,8 @@
     // so measure the gap while home is on screen and shift the overlay by it.
     let heroOffset = 0;
     function measureHeroOffset() {
-      const heroWord = [...document.querySelectorAll("#top .hero-line")]
-        .find((el) => el.textContent.trim() === "Libby");
-      const overlayWord = overlay.querySelector(".to-line");
+      const heroWord = document.querySelector("#top .hero-badge");
+      const overlayWord = overlay.querySelector(".hero-badge");
       if (!heroWord || !overlayWord) return;
       const h = heroWord.getBoundingClientRect();
       if (!h.height) return; // home not rendered — keep the last good value
@@ -1751,137 +1932,9 @@
       }
     }
 
-    // ---------------- Float-to-gallery flight ----------------
-    // Clicking a gallery link from the hero: the floating photos belonging to
-    // that category fly into their landing spot in the gallery grid, visible
-    // the whole way — riding above the letters-transition overlay instead of
-    // vanishing when the view swaps beneath it — while the rest of the
-    // floating photos fade out. Purely a hero embellishment: it only fires
-    // when home is actually on screen, since that's the only place these
-    // floating photos exist.
-    const flightLayer = document.getElementById("flight-layer");
-
-    function prepareFloatFlight(targetCat) {
-      if (isTransitioning || currentView !== "home" || !floatCards.length) return;
-
-      if (REDUCE_MOTION) {
-        floatCards.forEach((card) => { card.querySelector(".float-card-inner").style.opacity = "0"; });
-        return;
-      }
-
-      const survivors = [], others = [];
-      floatCards.forEach((card) => (card.dataset.cat === targetCat ? survivors : others).push(card));
-      others.forEach((card) => { card.querySelector(".float-card-inner").style.opacity = "0"; });
-      if (!survivors.length) return;
-
-      // Origin rects first, while home is still the one active view — once
-      // it loses that class below, its whole subtree (these cards included)
-      // goes display:none and reads back as all zeros.
-      const origins = new Map(
-        survivors.map((card) => [card, card.querySelector(".photo-frame").getBoundingClientRect()])
-      );
-
-      // Now measure where each survivor lands: reveal the target grid
-      // invisibly (visibility, not display, so it still lays out) to read
-      // real rects — the same trick measureHeroOffset uses for the hero
-      // wordmark. Home has to lose "active" for this instant too — .view
-      // rules only collapse a view once nothing else claims the class, so
-      // leaving both active stacks them in normal flow and every measurement
-      // below lands a hero's-height too low. Nothing paints mid-swap: this
-      // is synchronous, so the browser never presents the in-between frame.
-      const section = viewEls[targetCat];
-      const grid = section.querySelector(".gallery-track");
-      const viewport = section.querySelector(".gallery-viewport");
-      viewEls.home.classList.remove("active");
-      section.classList.add("active");
-      section.style.visibility = "hidden";
-      fitCards(grid);
-
-      // The scatter can place a "recent" photo well outside the strip's
-      // starting scroll position. Bring it into view now, before measuring,
-      // so the photo actually lands somewhere the visitor can see rather
-      // than flying off past the edge of the screen.
-      const destEls = survivors
-        .map((card) => grid.querySelector(`.photo-card[data-index="${card.dataset.index}"]`))
-        .filter(Boolean);
-      if (destEls.length) {
-        const centers = destEls.map((d) => d.offsetLeft + d.offsetWidth / 2);
-        const avgCenter = centers.reduce((a, b) => a + b, 0) / centers.length;
-        const maxScroll = Math.max(0, grid.scrollWidth - viewport.clientWidth);
-        viewport.scrollLeft = clamp(avgCenter - viewport.clientWidth / 2, 0, maxScroll);
-        // This section goes back to display:none a few lines down — the
-        // wheel/drag spring's closure state doesn't need syncing to this
-        // value here; activateView() does that once the real transition
-        // makes this gallery visible for good (see the note there).
-      }
-
-      const flights = survivors
-        .map((card) => {
-          const dest = grid.querySelector(`.photo-card[data-index="${card.dataset.index}"]`);
-          if (!dest) return null;
-          return { card, dest, from: origins.get(card), to: dest.querySelector(".photo-frame").getBoundingClientRect() };
-        })
-        .filter(Boolean);
-
-      section.style.visibility = "";
-      section.classList.remove("active");
-      viewEls.home.classList.add("active"); // restore — the real transition re-claims it properly
-
-      flights.forEach(({ card, dest, from, to }) => {
-        const clone = document.createElement("div");
-        clone.className = "flight-card";
-        clone.style.left = `${to.left}px`;
-        clone.style.top = `${to.top}px`;
-        clone.style.width = `${to.width}px`;
-        clone.style.height = `${to.height}px`;
-        clone.innerHTML = `<img src="${card.querySelector("img").src}" alt="" />`;
-        flightLayer.appendChild(clone);
-
-        // FLIP: the clone's box is the destination; a transform makes it
-        // *look* like the origin, so only transform has to animate — the
-        // guardrail's "transform and opacity only," and no layout thrash.
-        const dx = from.left - to.left, dy = from.top - to.top;
-        const sx = from.width / to.width, sy = from.height / to.height;
-        clone.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
-        card.style.display = "none"; // the flying clone represents it now
-
-        // The destination card lands already in place, so it shouldn't also
-        // play its own entrance stagger when the gallery reveals.
-        dest.classList.remove("reveal");
-        dest.dataset.flew = "1";
-
-        requestAnimationFrame(() => {
-          clone.style.transition = `transform ${TRANSITION_MS}ms var(--ease-spring)`;
-          clone.style.transform = "none";
-        });
-        setTimeout(() => clone.remove(), TRANSITION_MS + 80);
-      });
-    }
-
-    // Undoes prepareFloatFlight's traces once the hero is back on screen, so
-    // every visit starts from the same full set of floating photos.
-    function resetFloatLayer() {
-      floatCards.forEach((card) => {
-        card.style.display = "";
-        card.querySelector(".float-card-inner").style.opacity = "";
-      });
-      document.querySelectorAll(".photo-card[data-flew]").forEach((el) => {
-        el.classList.add("reveal");
-        el.removeAttribute("data-flew");
-      });
-      flightLayer.innerHTML = "";
-    }
-
-    // Capture phase, so this runs before the link's default action changes
-    // location.hash (hashchange itself fires asynchronously either way).
-    document.addEventListener("click", (e) => {
-      const a = e.target.closest("a");
-      if (!a) return;
-      const hash = (a.getAttribute("href") || "").slice(1);
-      if (GALLERY_VIEWS.includes(hash)) prepareFloatFlight(hash);
-    }, true);
 
     window.addEventListener("hashchange", routeFromHash);
     routeFromHash();
+    })();
   </script>
 </body>
