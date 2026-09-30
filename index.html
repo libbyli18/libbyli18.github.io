@@ -182,9 +182,8 @@
   }
 
   /* ---------- Photo grid (endless, both axes) ---------- */
-  /* A real pannable canvas — wider than the viewport (more photos just add
-     columns) and taller than it too (see .gallery-track's height), so the
-     whole field is explorable in any direction, not just sideways. */
+  /* A real pannable canvas — wider and taller than the viewport (see
+     layoutWorkGrid), so the whole field is explorable in any direction. */
   .gallery-viewport {
     overflow: auto;
     /* The track is the only thing that moves; hitting an edge stops dead
@@ -198,42 +197,20 @@
   .gallery-viewport::-webkit-scrollbar { display: none; }
   .gallery-viewport.dragging { cursor: grabbing; }
 
-  /* CSS multi-column, not grid or flex-wrap: both of those size an entire
-     row/column track to its largest member, which would leave dead space
-     next to every narrower photo. A column's WIDTH here is fixed instead,
-     and each photo's own aspect ratio (set inline) determines its HEIGHT at
-     that width — the classic Pinterest-style masonry, and the only one of
-     the three that gives every photo genuinely independent sizing with no
-     wasted space. column-fill: auto fills one column top-to-bottom before
-     starting the next, rather than balancing all columns to equal height.
-     The fixed height below is what forces that overflow into new columns
-     at all — without it there'd be nothing to spill sideways from. */
-  .gallery-track {
-    columns: 280px;
-    column-gap: 16px;
-    column-fill: auto;
-    height: 230dvh;
-    width: max-content;
-  }
-  @media (max-width: 860px) {
-    .gallery-track { columns: 220px; column-gap: 12px; height: 210dvh; }
-  }
-
-  .photo-card {
-    position: relative;
+  /* Justified rows (see layoutWorkGrid): every photo in a row shares one
+     height and keeps its own shape, and each row is scaled so both ends line
+     up. In columns every card shares a width instead, so a landscape photo
+     came out about half the size of a portrait one; here it gets its full
+     width. Cards are placed in JS, and the track is sized to hold them —
+     wider and taller than the screen, so it pans both ways. */
+  .gallery-track { position: relative; }
+  .gallery-track .photo-card {
+    position: absolute;
     cursor: pointer;
-    width: 100%;
-    margin-bottom: 16px;
-    break-inside: avoid;
   }
-  @media (max-width: 860px) {
-    .photo-card { margin-bottom: 12px; }
-  }
-  /* Fills the column's fixed width; height follows from the frame's own
-     inline aspect-ratio rather than being forced to match its neighbours. */
   .gallery-track .photo-frame {
     width: 100%;
-    height: auto;
+    height: 100%;
     box-shadow: none;
     border-radius: 0;
   }
@@ -979,13 +956,6 @@
       : gallery.t);
 
     (function buildWorkGrid() {
-      // The flex-wrap column in .gallery-track places every card
-      // automatically — no positions to compute, and no limit on how many
-      // columns (or how tall a column gets) it grows to, so unlike the old
-      // hand-placed scatter there's nothing to run out of or repeat no
-      // matter how large the combined library gets. Each card's own
-      // aspect-ratio is what lets it keep its real width at the shared
-      // .photo-card height, rather than being cropped into a uniform cell.
       const rng = makeRng(seedFrom("work-grid") ^ LAYOUT_SEED);
       const photos = galleries.flatMap((g, gi) => g.sets.map((photo, pi) => ({ g, gi, photo, pi })));
 
@@ -1008,6 +978,59 @@
         gridWork.appendChild(card);
       });
     })();
+
+    // ---------------- Grid layout: justified rows ----------------
+    // Photos run left to right in rows at about GRID_ROW_H tall; each row's
+    // height is then nudged so it exactly fills the canvas width. Pure
+    // arithmetic on the photos' shapes and the screen size, so it works
+    // while the grid is hidden. The canvas is shaped like the screen and big
+    // enough for everything, so there's as much to explore across as down.
+    const gridRowHeight = () => (innerWidth <= 860 ? 180 : 280);
+    const gridGap = () => (innerWidth <= 860 ? 12 : 16);
+    function layoutWorkGrid() {
+      const cards = [...gridWork.querySelectorAll(".photo-card")];
+      const R = gridRowHeight(), gap = gridGap();
+      const aspects = cards.map((c) => {
+        const p = galleries[+c.dataset.gallery].sets[+c.dataset.photo];
+        return p.w / p.h;
+      });
+      const total = aspects.reduce((sum, k) => sum + k * R + gap, 0);
+      const rows = Math.max(1, Math.round(Math.sqrt((total * innerHeight) / (innerWidth * (R + gap)))));
+      const W = total / rows;
+      const sum = (row) => row.reduce((a, i) => a + aspects[i], 0);
+      const fitHeight = (row) => (W - gap * (row.length - 1)) / sum(row);
+
+      let y = 0;
+      const place = (row, h) => {
+        let x = 0;
+        row.forEach((i) => {
+          const w = aspects[i] * h;
+          Object.assign(cards[i].style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+          x += w + gap;
+        });
+        y += h + gap;
+      };
+      let row = [];
+      aspects.forEach((k, i) => {
+        row.push(i);
+        if (sum(row) * R + gap * (row.length - 1) < W) return;
+        // Full: end the row here or just before this photo — whichever
+        // leaves its height nearer the target.
+        const before = row.slice(0, -1);
+        if (before.length && Math.abs(fitHeight(before) - R) < Math.abs(fitHeight(row) - R)) {
+          place(before, fitHeight(before));
+          row = [i];
+        } else {
+          place(row, fitHeight(row));
+          row = [];
+        }
+      });
+      // The last row keeps the target height unless it nearly fills the width.
+      if (row.length) place(row, Math.min(R, fitHeight(row)));
+      gridWork.style.width = `${W}px`;
+      gridWork.style.height = `${Math.max(0, y - gap)}px`;
+    }
+    layoutWorkGrid();
 
     // ---------------- 360° scroll interaction ----------------
     // A real 2D pan, not a horizontal-only strip: wheel/trackpad gestures
@@ -1608,6 +1631,7 @@
       const finish = () => {
         lbStrip.innerHTML = "";
         lightbox.classList.remove("closing");
+        if (gridLayoutDirty) relayoutGrid();
         if (home) home.style.visibility = "";
       };
       if (instant || REDUCE_MOTION || !home) { finish(); if (home && !instant) home.focus({ preventScroll: true }); return; }
@@ -1708,6 +1732,27 @@
       if (Math.abs(dx) < SWIPE_THRESHOLD) return;
       stepViewer(dx < 0 ? 1 : -1); // swipe left -> next, the way the strip runs
     }, { passive: true });
+
+    // ---------------- Grid on resize ----------------
+    let gridLayoutDirty = false;
+    function relayoutGrid() {
+      gridLayoutDirty = false;
+      const vp = workViewport;
+      const fx = vp.scrollWidth ? (vp.scrollLeft + vp.clientWidth / 2) / vp.scrollWidth : 0.5;
+      const fy = vp.scrollHeight ? (vp.scrollTop + vp.clientHeight / 2) / vp.scrollHeight : 0.5;
+      layoutWorkGrid();
+      vp.scrollLeft = fx * vp.scrollWidth - vp.clientWidth / 2;
+      vp.scrollTop = fy * vp.scrollHeight - vp.clientHeight / 2;
+      vp._syncScrollSpring?.();
+    }
+    let gridResizeTimer = null;
+    addEventListener("resize", () => {
+      clearTimeout(gridResizeTimer);
+      gridResizeTimer = setTimeout(() => {
+        if (isTransitioning || viewer) gridLayoutDirty = true;
+        else relayoutGrid();
+      }, 150);
+    });
 
     // ---------------- View routing ----------------
     // Just two screens now: the hero and the work grid. Hash-based so the
@@ -2005,6 +2050,7 @@
         return;
       }
 
+      if (gridLayoutDirty) relayoutGrid();
       settleHero();
       exitHeroText();
       freezeFloat3d();
