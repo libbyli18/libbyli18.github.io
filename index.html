@@ -256,7 +256,7 @@
     bottom: 1.75rem;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 50;
+    z-index: 9995;           /* above the flight layer, so no flying photo covers it */
     opacity: 0;              /* shown by JS whenever the hero words are hidden */
     pointer-events: none;
   }
@@ -478,8 +478,8 @@
     /* Under the grain (9998) and the top/bottom rules (9999), exactly like
        the photos it stands in for — otherwise the grain and rules would
        appear on a photo the moment its clone is swapped for it. Still above
-       both views. */
-    z-index: 9995;
+       both views, and under the Home button (9995). */
+    z-index: 9994;
     pointer-events: none;
   }
   .work-flight-card {
@@ -1774,6 +1774,11 @@
     const FLIGHT_STAGGER_CAP_MS = 650;
     const SETTLE_MS = 300; // final crossfade onto a sharp copy of the grid photo (runEnterWork)
     const CLONE_FADE_MS = 200; // then the flying clone fades out from underneath it
+    // Photos not on the hero spread into the grid from behind the hero ones:
+    const BLOOM_FROM_SCALE = 0.3;
+    const BLOOM_START = 0.35;        // share of the flight before they begin
+    const BLOOM_STAGGER_MS = 25;     // nearest first
+    const BLOOM_STAGGER_CAP_MS = 300;
     const flightLayer = document.getElementById("flight-layer");
 
     // A completed entrance animation (heroDropIn/heroRiseIn, both
@@ -1958,6 +1963,24 @@
       if (flight) flight.finished.then(then, () => {});
     }
 
+    // A flat copy of a photo at its exact grid size, fading in over a clone
+    // that's about to land there (`landAt` ms from now). The browser draws a
+    // photo that has just been scaled into place a touch softer than the real
+    // one, but this copy never moves — so the grid photo that replaces it
+    // matches pixel for pixel. It starts once the clone is a fraction of a
+    // pixel from its slot, so the crossfade itself is invisible.
+    function addSettleCopy(card, rect, landAt) {
+      const settle = document.createElement("div");
+      settle.className = "work-flight-card flight-settle";
+      Object.assign(settle.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+      settle.innerHTML = `<img src="${card.querySelector("img").src}" alt="" />`;
+      flightLayer.appendChild(settle);
+      requestAnimationFrame(() => {
+        settle.style.transition = `opacity ${SETTLE_MS}ms ease ${landAt - SETTLE_MS}ms`;
+        settle.style.opacity = "1";
+      });
+    }
+
     // Each hero card paired with its own slot in the grid.
     function featuredPairs() {
       return float3dCards
@@ -2002,8 +2025,6 @@
 
         // Centre the viewport (both axes) on the featured cards' average
         // position, so the flight lands somewhere visible, not past an edge.
-        let centerAlong = workViewport.clientWidth / 2;
-        let centerDown = workViewport.clientHeight / 2;
         if (pairs.length) {
           const avgX = pairs.reduce((a, { dest: d }) => a + d.offsetLeft + d.offsetWidth / 2, 0) / pairs.length;
           const avgY = pairs.reduce((a, { dest: d }) => a + d.offsetTop + d.offsetHeight / 2, 0) / pairs.length;
@@ -2011,29 +2032,59 @@
           const maxScrollY = Math.max(0, workGridTrack.scrollHeight - workViewport.clientHeight);
           workViewport.scrollLeft = clamp(avgX - workViewport.clientWidth / 2, 0, maxScrollX);
           workViewport.scrollTop = clamp(avgY - workViewport.clientHeight / 2, 0, maxScrollY);
-          centerAlong = workViewport.scrollLeft + workViewport.clientWidth / 2;
-          centerDown = workViewport.scrollTop + workViewport.clientHeight / 2;
         }
 
         const flights = pairs.map((p) => ({ ...p, to: p.dest.querySelector(".photo-frame").getBoundingClientRect() }));
         const featured = new Set(flights.map((f) => f.dest));
         const lastStagger = flights.length ? flightStagger(flights.length - 1) : 0;
 
-        // Every non-featured card blooms outward from the viewport's centre,
-        // in track space, so it emerges from behind wherever the cluster landed.
+        // Photos that aren't on the hero but will be on screen when the grid
+        // takes over. The grid itself stays hidden until then, so each gets a
+        // copy (see below) that spreads out from behind the nearest hero
+        // photo's landing spot — otherwise they'd pop in at the swap.
+        // Measured now, while the grid is laid out.
+        const landings = flights.map((f) => ({ x: f.to.left + f.to.width / 2, y: f.to.top + f.to.height / 2 }));
+        if (!landings.length) landings.push({ x: innerWidth / 2, y: innerHeight / 2 });
+        const blooms = [];
         workGridTrack.querySelectorAll(".photo-card").forEach((el) => {
           if (featured.has(el)) return;
-          const dx = centerAlong - (el.offsetLeft + el.offsetWidth / 2);
-          const dy = centerDown - (el.offsetTop + el.offsetHeight / 2);
-          el.classList.remove("reveal", "is-visible");
-          el.style.transition = "none";
-          el.style.transform = `translate(${dx}px, ${dy}px) scale(0.2)`;
-          el.style.opacity = "0";
+          const rect = el.querySelector(".photo-frame").getBoundingClientRect();
+          if (rect.right < 0 || rect.left > innerWidth || rect.bottom < 0 || rect.top > innerHeight) return;
+          const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+          const d = (p) => Math.hypot(p.x - cx, p.y - cy);
+          const from = landings.reduce((best, p) => (d(p) < d(best) ? p : best));
+          blooms.push({ el, rect, dx: from.x - cx, dy: from.y - cy, dist: d(from) });
         });
 
         viewEls.work.style.visibility = "";
         viewEls.work.classList.remove("active");
         viewEls.home.classList.add("active"); // restored — activateView claims it for real below
+
+        // Under the hero photos' clones (added first, so drawn beneath them):
+        // each starts small and invisible behind its nearest hero photo's
+        // spot and grows into its own slot, nearest first, all landing when
+        // the last hero photo does. Laid out at the grid photo's exact size,
+        // so where it ends is exactly the grid photo that replaces it.
+        const landAt = ENTER_MS + lastStagger;
+        blooms.sort((a, b) => a.dist - b.dist).forEach((b, i) => {
+          const { clone } = addFlightClone(b.el, b.rect);
+          clone.firstElementChild.style.opacity = "0"; // grid photos have no shadow
+          clone.style.transform = `translate(${b.dx}px, ${b.dy}px) scale(${BLOOM_FROM_SCALE})`;
+          clone.style.opacity = "0";
+          const delay = Math.round(ENTER_MS * BLOOM_START + Math.min(i * BLOOM_STAGGER_MS, BLOOM_STAGGER_CAP_MS));
+          const dur = landAt - delay;
+          requestAnimationFrame(() => {
+            clone.style.transition =
+              `transform ${dur}ms var(--ease-spring) ${delay}ms, opacity ${Math.round(dur * 0.45)}ms ease ${delay}ms`;
+            clone.style.transform = "none";
+            clone.style.opacity = "1";
+          });
+          addSettleCopy(b.el, b.rect, landAt);
+          setTimeout(() => {
+            clone.style.transition = `opacity ${CLONE_FADE_MS}ms ease`;
+            clone.style.opacity = "0";
+          }, landAt + 16);
+        });
 
         // Staggered per card — a procession into the grid, not one burst.
         flights.forEach(({ card, dest, to }, i) => {
@@ -2059,41 +2110,14 @@
             shadow.style.opacity = "0";
           });
 
-          // The clone is laid out at the hero card's size so the flight
-          // starts as an exact match, but the browser keeps drawing it at
-          // that resolution all the way, so it arrives a touch softer than
-          // the grid photo. Over the last stretch, where it's already within
-          // a fraction of a pixel of its slot, a flat copy of the photo at the
-          // slot's exact size fades in over it — and that copy is what the
-          // real grid photo replaces, pixel for pixel.
-          const settle = document.createElement("div");
-          settle.className = "work-flight-card flight-settle";
-          Object.assign(settle.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
-          settle.innerHTML = `<img src="${card.querySelector("img").src}" alt="" />`;
-          flightLayer.appendChild(settle);
-          requestAnimationFrame(() => {
-            settle.style.transition = `opacity ${SETTLE_MS}ms ease ${flightStagger(i) + ENTER_MS - SETTLE_MS}ms`;
-            settle.style.opacity = "1";
-          });
+          // Laid out at the hero card's size, the clone starts as an exact
+          // match but lands a touch soft — so a flat copy takes over at the end.
+          addSettleCopy(card, to, flightStagger(i) + ENTER_MS);
         });
         // Commit every clone's starting pose before any rAF above sets its
         // target — a clone with no committed style yet would have nothing to
         // transition from and would jump straight to the grid.
         void flightLayer.offsetWidth;
-
-        // Same total length as the last (most-staggered) flight, so the bloom
-        // and the final featured card settle in the same instant.
-        const bloomMs = ENTER_MS + lastStagger;
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            workGridTrack.querySelectorAll(".photo-card").forEach((el) => {
-              if (featured.has(el)) return;
-              el.style.transition = `transform ${bloomMs}ms var(--ease-spring), opacity ${bloomMs}ms var(--ease-spring)`;
-              el.style.transform = "none";
-              el.style.opacity = "1";
-            });
-          });
-        });
 
         // The "Scroll to discover" cue fades in as the grid takes over, rather
         // than popping in (it fades out the same way on the trip back).
@@ -2107,11 +2131,6 @@
             delete dest.dataset.flying;
           });
           flightLayer.innerHTML = "";
-          workGridTrack.querySelectorAll(".photo-card").forEach((el) => {
-            el.style.transition = "";
-            el.style.transform = "";
-            el.style.opacity = "";
-          });
           if (cue) {
             void cue.offsetWidth;
             cue.style.transition = `opacity ${HERO_TEXT_MS}ms var(--ease-spring)`;
