@@ -1,32 +1,26 @@
 # Adding your photos
 
-Drop image files straight into the matching folder — no other setup:
-
-```
-photos/travel/
-photos/personal/
-photos/bruin/       (Daily Bruin)
-```
-
+Drop image files (or folders of them) into `photos/` — no other setup.
 Then, from the project root, run:
 
 ```
 node build-photos.mjs
 ```
 
-Refresh the site. That category now shows your real photos instead of the
-gray placeholders — the other categories are untouched until you add photos
-to their folders too and run the script again.
+Refresh the site. Each gallery's name is what shows when you hover its card.
+
+Folders with no images directly inside them (like the older
+`photos/travel/`) are just for organising: the script looks inside them
+the same way, and they don't show up on the site anywhere.
 
 ## Mini-galleries (a card with more than one photo)
 
 A loose file is a single-photo card. Put photos in a **subfolder** instead,
 and the whole subfolder becomes one card — clicking it opens a lightbox you
-scroll through all of that subfolder's photos, same as the placeholder cards
-that already show a little count badge.
+scroll through all of that subfolder's photos.
 
 ```
-photos/travel/
+photos/
   01-golden-gate-bridge.jpg     <- single-photo card
   02-market-day/                <- one card, a mini-gallery of 3
     1.jpg
@@ -55,7 +49,7 @@ either with numbers to control where it lands relative to the other —
 `01-golden-gate-bridge.jpg`, `02-market-day/`, `03-sunset.jpg` appear in
 exactly that order.
 
-The title shown in the lightbox comes from the file's (or folder's) name:
+The name shown on hover and in the lightbox comes from the file's (or folder's) name:
 the leading number is stripped, dashes/underscores become spaces, and it's
 title-cased — `01-golden-gate-bridge.jpg` becomes "Golden Gate Bridge".
 Rename the file or folder to change the title.
@@ -65,9 +59,3 @@ Rename the file or folder to change the title.
 Safe to re-run `node build-photos.mjs` any time — add a few more photos,
 run it again, refresh. It only reads your folders and rewrites
 `photos-data.js`; it never touches or deletes your original images.
-
-## Going back to placeholders
-
-Delete a category's photos (or the whole `photos-data.js` file) and
-re-run the script — an empty category automatically falls back to the
-placeholder gallery, same as before any of this existed.

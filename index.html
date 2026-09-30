@@ -181,16 +181,15 @@
     transform: translateY(0);
   }
 
-  /* ---------- Horizontal gallery (2D scatter field) ---------- */
-  /* Photos are absolutely placed across a wide, full-height track so they
-     fill the whole page vertically as well as horizontally — the track
-     scrolls sideways. */
+  /* ---------- Photo grid (endless, both axes) ---------- */
+  /* A real pannable canvas — wider than the viewport (more photos just add
+     columns) and taller than it too (see .gallery-track's height), so the
+     whole field is explorable in any direction, not just sideways. */
   .gallery-viewport {
-    overflow-x: auto;
-    overflow-y: hidden;
-    /* The track is the only thing that moves; hitting either end stops dead
+    overflow: auto;
+    /* The track is the only thing that moves; hitting an edge stops dead
        rather than bouncing the page or triggering a back-swipe. */
-    overscroll-behavior-x: contain;
+    overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     cursor: grab;
@@ -199,22 +198,54 @@
   .gallery-viewport::-webkit-scrollbar { display: none; }
   .gallery-viewport.dragging { cursor: grabbing; }
 
+  /* CSS multi-column, not grid or flex-wrap: both of those size an entire
+     row/column track to its largest member, which would leave dead space
+     next to every narrower photo. A column's WIDTH here is fixed instead,
+     and each photo's own aspect ratio (set inline) determines its HEIGHT at
+     that width — the classic Pinterest-style masonry, and the only one of
+     the three that gives every photo genuinely independent sizing with no
+     wasted space. column-fill: auto fills one column top-to-bottom before
+     starting the next, rather than balancing all columns to equal height.
+     The fixed height below is what forces that overflow into new columns
+     at all — without it there'd be nothing to spill sideways from. */
   .gallery-track {
-    position: relative;
-    height: 100%;
-    width: 170vw;
+    columns: 280px;
+    column-gap: 16px;
+    column-fill: auto;
+    height: 230dvh;
+    width: max-content;
   }
-  @media (max-width: 860px) { .gallery-track { width: 430vw; } }
+  @media (max-width: 860px) {
+    .gallery-track { columns: 220px; column-gap: 12px; height: 210dvh; }
+  }
 
   .photo-card {
-    position: absolute;
+    position: relative;
     cursor: pointer;
+    width: 100%;
+    margin-bottom: 16px;
+    break-inside: avoid;
+  }
+  @media (max-width: 860px) {
+    .photo-card { margin-bottom: 12px; }
+  }
+  /* Fills the column's fixed width; height follows from the frame's own
+     inline aspect-ratio rather than being forced to match its neighbours. */
+  .gallery-track .photo-frame {
+    width: 100%;
+    height: auto;
+    box-shadow: none;
+    border-radius: 0;
   }
 
+  /* Fixed to the viewport, not the track — the track is now taller and
+     wider than one screen in every direction, so anything positioned as a
+     percentage of it could easily land off past whatever edge is currently
+     scrolled into view. */
   .scroll-cue {
-    position: absolute;
-    left: 12%;
-    top: 84%;
+    position: fixed;
+    left: 1.75rem;
+    bottom: 1.75rem;
     white-space: nowrap;
     pointer-events: none;
     user-select: none;
@@ -226,6 +257,8 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 50;
+    opacity: 0;              /* shown by JS whenever the hero words are hidden */
+    pointer-events: none;
   }
   /* Keep the centered pill's hover/active lift from cancelling the centering. */
   .back-pill:hover { transform: translateX(-50%) translateY(-2px); }
@@ -237,27 +270,15 @@
     overflow: hidden;
     background: #EBE7DD;
     box-shadow: 0 1px 2px rgba(27,24,21,0.06), 0 14px 30px -18px rgba(27,24,21,0.35);
-    transition: transform 0.55s var(--ease-spring), box-shadow 0.55s var(--ease-spring);
   }
-  .photo-card:hover .photo-frame, .photo-card:focus-visible .photo-frame {
-    transform: translateY(-6px);
-    box-shadow: 0 4px 10px rgba(27,24,21,0.08), 0 28px 50px -20px rgba(27,24,21,0.45);
-  }
-  /* With the cursor magnifier running, scale is driven per-frame from JS.
-     Drop the transition so it doesn't lag the pointer, and drop the inner
-     image zoom so the photo doesn't get scaled twice. */
-  .magnify .photo-frame { transition: box-shadow 0.55s var(--ease-spring); }
-  .magnify .photo-card:hover img { transform: none; }
   .photo-card img {
     display: block;
     width: 100%; height: 100%;
     object-fit: cover;
-    transition: transform 0.7s var(--ease-spring), filter 0.5s ease;
     filter: saturate(0.94);
     pointer-events: none;
     -webkit-user-drag: none;
   }
-  .photo-card:hover img { transform: scale(1.06); filter: saturate(1.05); }
 
   .card-count {
     display: block;
@@ -267,30 +288,25 @@
     letter-spacing: 0.08em;
     color: #5B5752;
   }
-
-  /* ---------- Set-size badge ---------- */
-  /* The only signal, in the grid, that a card opens onto more than one
-     photo — inside .photo-frame (not the card) so it's pinned to the
-     visible image regardless of the frame's own aspect ratio. */
-  .set-badge {
+  /* Flush grid tiles have no room below the image for a caption without
+     breaking the row alignment, so it sits over the bottom edge instead —
+     a scrim keeps it legible against any photo. */
+  .gallery-track .card-count {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
-    background: rgba(27, 24, 21, 0.55);
-    backdrop-filter: blur(2px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 14px 8px 5px;
+    text-align: left;
     color: #F6F2E8;
-    font-size: 0.6rem;
-    letter-spacing: 0.02em;
-    line-height: 18px;
-    text-align: center;
+    background: linear-gradient(to top, rgba(27,24,21,0.55), transparent);
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-spring);
   }
-
-  /* ---------- Category dot ---------- */
-  .dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; }
+  /* Only shown on the photo being looked at (or focused from the keyboard). */
+  .gallery-track .photo-card:hover .card-count,
+  .gallery-track .photo-card:focus-visible .card-count { opacity: 1; }
 
   /* ---------- Lightbox ---------- */
   #lightbox {
@@ -390,7 +406,11 @@
                 transform 0.35s var(--ease-spring),
                 background-color 0.35s var(--ease-spring);
   }
-  #cursor-ring.is-visible span { opacity: 1; transform: scale(1); }
+  /* :not(.scroll-hint) matters: both children are <span> elements, so a
+     plain "span" selector here would also flip the hint to visible any time
+     the ring is (i.e. always) — not just where it's meant to appear, inside
+     .lightbox-mode. */
+  #cursor-ring.is-visible span:not(.scroll-hint) { opacity: 1; transform: scale(1); }
   /* Over anything clickable the outline floods solid — read through the
      difference blend, that inverts whatever sits under it, so the filled disc
      stays legible on the cream field and on a dark photo alike. */
@@ -425,208 +445,316 @@
      view's own utility classes (block, flex, ...) decide its layout. */
   .view:not(.active) { display: none; }
 
-  /* ---------- Page transition: "through the letters" ---------- */
-  #transition-overlay {
+  /* Where a hero photo lives mid-flight between the hero and its grid
+     slot, in either direction. Positioned in JS via FLIP, so only
+     transform is ever animated here, never left/top directly. */
+  #flight-layer {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    /* Under the grain (9998) and the top/bottom rules (9999), exactly like
+       the photos it stands in for — otherwise the grain and rules would
+       appear on a photo the moment its clone is swapped for it. Still above
+       both views. */
+    z-index: 9995;
+    pointer-events: none;
+  }
+  .work-flight-card {
+    position: fixed;
+    will-change: transform;
+  }
+  /* Never transformed — only fades in over the landing clone (see runEnterWork). */
+  .work-flight-card.flight-settle {
+    opacity: 0;
+    will-change: opacity;
+  }
+  /* The hero cards have this shadow and the grid photos have none, so it
+     sits on its own layer and fades over the flight (out on the way to the
+     grid, in on the way back) — nothing changes where the clone meets a card. */
+  .work-flight-card .flight-shadow {
+    position: absolute;
+    inset: 0;
+    box-shadow: 0 1px 2px rgba(27,24,21,0.05), 0 18px 34px -20px rgba(27,24,21,0.4);
+  }
+  /* Same square corners and colour treatment as both the hero and grid photos. */
+  .work-flight-card img {
+    position: relative;
+    display: block;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    filter: saturate(0.94);
+  }
+
+  /* ---------- Hero name ---------- */
+  /* "Libby" anchored to the right edge, "Li" to the left and lower — two
+     names, two corners, rather than one centred wordmark. */
+  .hero-name {
+    position: absolute;
+    z-index: 10;
+    margin: 0;
+    font-family: "EB Garamond", Garamond, Georgia, serif;
+    font-size: clamp(2.75rem, 9vw, 6.5rem);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: #1B1815;
+    white-space: nowrap;
+  }
+  .hero-name-libby {
+    right: 5vw;
+    top: 36%;
+    font-weight: 500;
+    text-align: right;
+  }
+  .hero-name-li {
+    left: 5vw;
+    top: 54%;
+    font-style: italic;
+    font-weight: 400;
+    text-align: left;
+  }
+  @media (max-width: 640px) {
+    .hero-name { font-size: clamp(2.4rem, 15vw, 3.6rem); }
+    .hero-name-libby { right: 6vw; top: 30%; }
+    .hero-name-li { left: 6vw; top: 58%; }
+  }
+  /* A scroll gesture sends each name further the way it was already leaning
+     — Libby further right, Li further left — rather than to a neutral
+     centre, so the exit reads as a continuation of where they sit, not a
+     generic fade. Driven entirely via inline styles from JS (see
+     settleHero/exitHeroText) rather than a class here — a completed
+     entrance animation's forwards-fill outranks a class-based transition on
+     the same property, so this has to out-inline-style it instead. */
+
+  /* ---------- Scroll-to-enter prompt ---------- */
+  .scroll-enter {
+    position: absolute;
+    z-index: 10;
+    bottom: 2.5rem;
+    left: 0;
+    right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    background: #F6F2E8;
-    pointer-events: none;
-    opacity: 0;
-    transform: scale(1);
+    gap: 10px;
+    color: #5B5752;
   }
-  #transition-overlay.animating {
-    transition: opacity 1.05s cubic-bezier(0.76, 0, 0.24, 1),
-      transform 1.05s cubic-bezier(0.76, 0, 0.24, 1);
+  .scroll-enter .stem {
+    width: 1px;
+    height: 22px;
+    background: currentColor;
+    opacity: 0.4;
+    animation: scrollEnterBob 1.8s var(--ease-spring) infinite;
   }
-  /* Gallery-to-gallery uses this plain cream flash instead of the wordmark
-     tunnel — there's no hero on screen to zoom through, and the scale/tunnel
-     motion only makes sense relative to it. The wordmark clone still lives
-     inside the overlay regardless, so it has to be hidden explicitly here or
-     it would flash into view along with the fade. */
-  #transition-overlay.plain-swap .hero-badge { visibility: hidden; }
+  @keyframes scrollEnterBob {
+    0%, 100% { transform: scaleY(1); opacity: 0.4; }
+    50% { transform: scaleY(0.5); opacity: 0.75; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-enter .stem { animation: none; }
+  }
 
-  /* ---------- Circular wordmark badge ---------- */
-  /* One shared class sizes both the hero's live badge and its overlay twin
-     identically and automatically — no second set of breakpoints to keep in
-     sync by hand. "LIBBY" curves along the top arc, "LI" along the bottom,
-     the way a photographer's embossing stamp or a lens ring sets curved
-     text — a small, quiet insignia rather than the sprawling flat wordmark
-     this replaces. */
-  .hero-badge {
-    display: block;
-    width: clamp(130px, 20vw, 200px);
-    height: clamp(130px, 20vw, 200px);
-    overflow: visible;
-  }
-  .badge-ring {
-    fill: none;
-    stroke: #1B1815;
-    stroke-width: 1;
-    opacity: 0.55;
-  }
-  .badge-dot { fill: #1B1815; opacity: 0.55; }
-  .badge-text {
-    font-family: "EB Garamond", Garamond, Georgia, serif;
-    font-size: 27px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    fill: #1B1815;
-  }
-  .badge-text-italic { font-style: italic; font-weight: 400; }
-
-  /* ---------- Hero orbit ---------- */
-  /* The hero's centerpiece: recent photos revolve slowly around the badge.
-     Sits below the hero copy (z-10 there vs. z-0 here) and clipped by #top's
-     own overflow-hidden, so the ring can never push a card past the edge. */
-  .hero-orbit {
+  /* ---------- Hero float (3D) ---------- */
+  /* Recent photos drift in a shallow 3D field behind the name — sits below
+     the hero copy (z-10 there vs. z-0 here) and clipped by #top's own
+     overflow-hidden, so depth and drift can never push a card past the edge.
+     Perspective lives on the layer, not the cards, so every card shares one
+     consistent vanishing point rather than each getting its own. */
+  .hero-float3d {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
+    perspective: 1400px;
   }
-  .orbit-card {
+  .float3d-card {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: clamp(70px, 9vw, 130px);
-    margin: 0;
-    padding: 0;
-    border: none;
-    background: none;
     display: block;
+    /* left/top/width are set by layoutFloat3d from the number of cards. */
     pointer-events: auto;
-    cursor: pointer;
-    /* Angle/radius place it on the ring; the counter-rotate keeps the card
-       itself upright regardless of where it sits. All three custom
-       properties are rewritten every frame from JS — a CSS transition here
-       would fight that per-frame update instead of smoothing it, the same
-       reason the cursor ring and gallery scatter both skip one too. */
-    transform: translate(-50%, -50%) rotate(var(--orbit-angle, 0deg))
-      translate(var(--orbit-radius, 200px)) rotate(calc(-1 * var(--orbit-angle, 0deg)))
-      scale(var(--orbit-scale, 1));
+    transform-style: preserve-3d;
   }
-  .orbit-card .photo-frame {
+  .float3d-inner {
+    animation-name: float3dDrift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    transform-style: preserve-3d;
+  }
+  .float3d-inner .photo-frame {
+    border-radius: 0;
     box-shadow: 0 1px 2px rgba(27,24,21,0.05), 0 18px 34px -20px rgba(27,24,21,0.4);
   }
-  .orbit-card:focus-visible {
-    outline: 2px solid #1B1815;
-    outline-offset: 3px;
-    border-radius: 4px;
-  }
-  .orbit-card img {
+  .float3d-card img {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    filter: saturate(0.92);
+    filter: saturate(0.94);
   }
-  @media (max-width: 640px) {
-    .orbit-card { width: clamp(58px, 15vw, 92px); }
+  @keyframes float3dDrift {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotate(var(--fr, 1.4deg));
+    }
+    50% {
+      transform: translate3d(var(--fx, 14px), var(--fy, -18px), var(--fz, 40px))
+        rotateX(var(--frx, 6deg)) rotateY(var(--fry, -8deg)) rotate(calc(var(--fr, 1.4deg) * -1));
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .float3d-inner { animation: none; }
   }
 
-  /* ---------- Orbit flight + enlarged view ---------- */
-  /* The clone that "blows" from a card's ring position to screen centre —
-     positioned in JS every frame along a randomised curve, so only left/top/
-     width/height/transform are ever touched here, never a CSS animation. */
-  .orbit-flight-card {
-    position: fixed;
-    z-index: 10000;
-    border-radius: 2px;
-    overflow: hidden;
-    box-shadow: 0 8px 20px rgba(27,24,21,0.12), 0 32px 60px -20px rgba(27,24,21,0.5);
-    pointer-events: none;
-  }
-  .orbit-flight-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
-
-  /* Where the card settles: a plain, single-photo view — deliberately
-     simpler than the full lightbox (no scrolling through a set), since the
-     point of this one is the arrival, not browsing. */
-  #orbit-view {
+  /* ---------- Loading screen ---------- */
+  /* A cream cover with one ring in the middle that draws itself round as the
+     hero loads, then shrinks into the cursor ring (see pageLoader). The
+     hero's entrance waits, paused, until the cover starts to clear. */
+  html.is-loading .hero-line { animation-play-state: paused; }
+  #loader {
     position: fixed;
     inset: 0;
-    /* Above the header (9999) — its box spans the full width even where it
-       has no visible content, and would otherwise silently steal clicks
-       meant for the close button in that top-right corner. Below the
-       cursor ring (10001), same as the letters-transition overlay. */
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(246, 242, 232, 0.97);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s var(--ease-spring);
-  }
-  #orbit-view.is-open {
-    opacity: 1;
-    visibility: visible;
-  }
-  #orbit-view .photo-frame,
-  .orbit-view-frame {
-    position: relative;
-    max-width: 72vw;
-    max-height: 78vh;
-    border-radius: 3px;
-    overflow: hidden;
-    box-shadow: 0 8px 20px rgba(27,24,21,0.12), 0 40px 70px -24px rgba(27,24,21,0.5);
-  }
-  #orbit-view img {
-    display: block;
-    max-width: 72vw;
-    max-height: 78vh;
-    object-fit: contain;
-  }
-  .orbit-view-count {
-    position: absolute;
-    bottom: 12px;
-    right: 14px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    background: rgba(27,24,21,0.72);
-    color: #F6F2E8;
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-  }
-  #orbit-view-close {
-    position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 999px;
-    border: 1px solid rgba(27,24,21,0.2);
+    z-index: 10002;               /* above everything, the cursor ring included */
     background: #F6F2E8;
-    color: #1B1815;
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+    transition: opacity 600ms var(--ease-spring);
   }
-  #orbit-view-close:hover { border-color: rgba(27,24,21,0.42); }
-  #orbit-view-close:focus-visible { outline: 2px solid #1B1815; outline-offset: 2px; }
+  #loader.is-done { opacity: 0; pointer-events: none; }
+  /* Built like #cursor-ring: a zero-size point moved to the ring's centre,
+     with the drawing hung off it. */
+  #loader-ring {
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 10003;
+    pointer-events: none;
+    mix-blend-mode: difference;   /* the same inverting ink as the cursor ring it becomes */
+    will-change: transform;
+  }
+  #loader-ring svg {
+    position: absolute;
+    left: -50px; top: -50px;
+    width: 100px; height: 100px;
+    overflow: visible;
+  }
+  #loader-ring circle { fill: none; stroke: #fff; stroke-width: 1.5; }
+  #loader-ring .track { stroke-opacity: 0.16; }
+  #loader-ring .arc { transform: rotate(-90deg); transform-origin: 50px 50px; } /* starts at 12 o'clock */
+  /* Once the arc closes, this takes over for the shrink: the same CSS circle
+     as the cursor ring (border, not SVG stroke — the two are antialiased a
+     little differently), so at 34px it is pixel-for-pixel the cursor. */
+  #loader-ring .disc {
+    position: absolute;
+    display: none;
+    border: 1.5px solid #fff;
+    border-radius: 50%;
+  }
 </style>
 
 <body class="font-body text-ink bg-cream">
 
-  <!-- Shared geometry for the circular wordmark badge below — one pair of
-       arcs, referenced by both the hero's live badge and its transition-
-       overlay twin, so their curves can never drift out of sync. -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <defs>
-      <path id="badge-arc-top" d="M 24.66,79.81 A 78,78 0 0 1 175.34,79.81" />
-      <path id="badge-arc-bottom" d="M 24.66,120.19 A 78,78 0 0 0 175.34,120.19" />
-    </defs>
-  </svg>
+  <!-- ================= LOADING SCREEN ================= -->
+  <div id="loader" aria-hidden="true"></div>
+  <div id="loader-ring" aria-hidden="true">
+    <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44" /><circle class="arc" cx="50" cy="50" r="44" /></svg>
+    <span class="disc"></span>
+  </div>
+  <script>
+    // ---------------- Loading screen ----------------
+    // Runs before anything else on the page, so the ring is up from the first
+    // paint. Progress is a weighted sum of what the hero actually needs; the
+    // main script reports its parts (data, hero photos, layout) as they land.
+    // The drawn arc eases toward that sum rather than jumping to it.
+    window.pageLoader = (() => {
+      const root = document.documentElement;
+      root.classList.add("is-loading", "cursor-pending");
+      const bg = document.getElementById("loader");
+      const ring = document.getElementById("loader-ring");
+      const svg = ring.querySelector("svg");
+      const disc = ring.querySelector(".disc");
+      const arc = ring.querySelector(".arc");
+      const REDUCE = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const D_START = 89.5;    // outer diameter of the drawn ring (r 44 + half the 1.5px stroke, doubled)
+      const D_CURSOR = 34;     // the cursor ring's outer diameter
+      const SHRINK_MS = 700;
+      const ARC_EASE = 0.12;
+      const parts = { dom: [0.1, 0], fonts: [0.15, 0], data: [0.15, 0], images: [0.5, 0], layout: [0.1, 0] };
+      const ARC_LEN = 2 * Math.PI * 44;
+      let shown = 0, rafId = null, handoff, finishing = false, pointer = null;
 
+      const centre = () => ({ x: innerWidth / 2, y: innerHeight / 2 });
+      const place = (p) => { ring.style.transform = `translate(${p.x}px, ${p.y}px)`; };
+      const setDiameter = (d) => Object.assign(disc.style, { width: `${d}px`, height: `${d}px`, margin: `${-d / 2}px 0 0 ${-d / 2}px` });
+      const drawArc = (p) => { arc.style.strokeDasharray = `${ARC_LEN}`; arc.style.strokeDashoffset = `${ARC_LEN * (1 - p)}`; };
+      place(centre());
+      drawArc(0);
+      addEventListener("resize", () => { if (!finishing) place(centre()); });
+      addEventListener("pointermove", (e) => { if (e.pointerType === "mouse") pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
+
+      const target = () => Object.values(parts).reduce((sum, [w, f]) => sum + w * f, 0);
+      function tick() {
+        const t = target();
+        shown += (t - shown) * ARC_EASE;
+        if (t - shown < 0.002) shown = t;
+        drawArc(shown);
+        if (shown >= 0.999 && handoff !== undefined) { rafId = null; shrink(); return; }
+        rafId = shown < t ? requestAnimationFrame(tick) : null;
+      }
+      const wake = () => { if (rafId === null && !finishing) rafId = requestAnimationFrame(tick); };
+
+      // Full: the cover fades as the ring shrinks to cursor size and glides
+      // to wherever the pointer is (following it if it moves meanwhile).
+      const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+      function shrink() {
+        finishing = true;
+        root.classList.remove("is-loading");
+        bg.classList.add("is-done");
+        setDiameter(D_START);
+        disc.style.display = "block";
+        svg.style.display = "none";
+        const from = centre();
+        if (REDUCE) {
+          setDiameter(D_CURSOR);
+          return end(pointer || from);
+        }
+        const start = performance.now();
+        (function step(now) {
+          const k = Math.min(1, (now - start) / SHRINK_MS), e = easeInOut(k);
+          const to = pointer || from;
+          place({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e });
+          setDiameter(D_START + (D_CURSOR - D_START) * e);
+          if (k < 1) requestAnimationFrame(step); else end(to);
+        })(start);
+      }
+      function end(point) {
+        root.classList.remove("cursor-pending");
+        if (handoff) {
+          handoff(point.x, point.y); // the cursor ring appears exactly where this one is
+          ring.remove();
+        } else {
+          ring.style.transition = "opacity 250ms ease";
+          ring.style.opacity = "0";
+          setTimeout(() => ring.remove(), 300);
+        }
+        setTimeout(() => bg.remove(), 700);
+      }
+
+      const api = {
+        report(name, fraction) {
+          if (!parts[name]) return;
+          parts[name][1] = Math.max(parts[name][1], Math.min(1, fraction));
+          wake();
+        },
+        // Called once the hero is ready; onHandoff(x, y) shows the real cursor
+        // ring there (null where there's no mouse, or if it's not ready).
+        finish(onHandoff) {
+          if (handoff !== undefined) return;
+          handoff = onHandoff || null;
+          Object.values(parts).forEach((p) => { p[1] = 1; });
+          wake();
+        },
+      };
+      document.addEventListener("DOMContentLoaded", () => api.report("dom", 1));
+      document.fonts.ready.then(() => api.report("fonts", 1));
+      setTimeout(() => api.finish(null), 15000); // never leave the cover up if something stalls
+      return api;
+    })();
+  </script>
 
   <div class="grain"></div>
   <div class="rule-top"></div>
@@ -638,37 +766,16 @@
     <span class="scroll-hint">Scroll to discover</span>
   </div>
 
-  <!-- ================= PAGE TRANSITION OVERLAY ================= -->
-  <div id="transition-overlay" aria-hidden="true">
-    <svg class="hero-badge" viewBox="0 0 200 200">
-      <circle class="badge-ring" cx="100" cy="100" r="92" />
-      <circle class="badge-dot" cx="22" cy="100" r="2.4" />
-      <circle class="badge-dot" cx="178" cy="100" r="2.4" />
-      <text class="badge-text">
-        <textPath href="#badge-arc-top" startOffset="50%" text-anchor="middle">Libby</textPath>
-      </text>
-      <text class="badge-text badge-text-italic">
-        <textPath href="#badge-arc-bottom" startOffset="50%" text-anchor="middle">Li</textPath>
-      </text>
-    </svg>
-  </div>
 
-  <!-- ================= ORBIT ENLARGED VIEW ================= -->
-  <!-- A clicked orbit card "blows" here (see openOrbitView) and settles into
-       a plain single-photo view — deliberately simpler than the scrollable
-       lightbox used everywhere else, since the point is the arrival. -->
-  <div id="orbit-view" aria-hidden="true">
-    <button id="orbit-view-close" aria-label="Close">✕</button>
-    <div class="orbit-view-frame">
-      <img id="orbit-view-img" src="" alt="" />
-      <span id="orbit-view-count" class="orbit-view-count" hidden></span>
-    </div>
-  </div>
+  <!-- ================= WORK-ENTRY FLIGHT LAYER ================= -->
+  <!-- Where a featured hero-float card lives while it flies into its exact
+       grid slot — see runEnterWork. -->
+  <div id="flight-layer" aria-hidden="true"></div>
 
   <!-- ================= HEADER ================= -->
   <header id="site-header" class="site-header fixed top-2 left-0 right-0 z-[9999] px-5 sm:px-8 py-4">
     <div class="max-w-[1400px] mx-auto flex items-center justify-between">
-      <a href="#home" class="font-mono text-xs sm:text-sm tracking-[0.18em] uppercase">Libby Li<span class="text-ink-soft">.</span></a>
+      <a href="#home" class="site-logo font-mono text-xs sm:text-sm tracking-[0.18em] uppercase">Libby Li<span class="text-ink-soft">.</span></a>
 
       <button id="menu-btn" class="pill md:hidden px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase" aria-label="Open menu" aria-expanded="false">
         Menu
@@ -676,13 +783,15 @@
     </div>
   </header>
 
+  <!-- Lives outside both views: it fades in over the hero as the words fade
+       out, and fades out as they return (see setHeroTextOpacity). -->
+  <a href="#home" class="pill back-pill px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase" inert>← Home</a>
+
   <!-- ================= MOBILE NAV ================= -->
   <div id="mobile-nav">
     <div class="h-full flex flex-col items-center justify-center gap-8">
       <button id="menu-close" class="pill absolute top-6 right-6 px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase" aria-label="Close menu">Close</button>
-      <a href="#travel" class="font-display text-4xl text-ink-mid hover:text-ink transition-colors">Travel</a>
-      <a href="#personal" class="font-display text-4xl text-ink-mid hover:text-ink transition-colors">Personal</a>
-      <a href="#bruin" class="font-display text-4xl text-ink-mid hover:text-ink transition-colors">Daily Bruin</a>
+      <a href="#work" class="font-display text-4xl text-ink-mid hover:text-ink transition-colors">View Work</a>
     </div>
   </div>
 
@@ -692,78 +801,40 @@
   <!-- ================= HERO ================= -->
   <section id="top" class="relative h-[100dvh] flex flex-col items-center justify-center px-6 text-center overflow-hidden">
 
-    <!-- Recent work, orbiting the badge. Built in JS (below) from each
-         category's own images, so it stays in sync with the galleries with
-         nothing to keep in parallel by hand. Real buttons, not decorative
-         divs, so no aria-hidden here — that would hide focusable content
-         from assistive tech while leaving it reachable by keyboard. -->
-    <div class="hero-orbit" id="hero-orbit"></div>
+    <!-- Recent work, drifting in a shallow 3D field. Built in JS (below)
+         from the most recent galleries, so it stays in sync with the
+         work grid with nothing to keep in parallel by hand. Purely ambient —
+         the only interaction on this whole hero is the scroll gesture that
+         carries these same photos into the grid (see runEnterWork) — so
+         aria-hidden is correct here, unlike most photo grids on this site. -->
+    <div class="hero-float3d" id="hero-float3d" aria-hidden="true"></div>
 
-    <p class="hero-line from-top font-mono text-[11px] sm:text-xs tracking-[0.3em] uppercase text-ink-soft mb-6 relative z-10">
+    <p class="hero-label hero-line from-top font-mono text-[11px] sm:text-xs tracking-[0.3em] uppercase text-ink-soft relative z-10">
       Photographer
     </p>
 
-    <!-- The transition overlay settles onto this by matching its
-         .hero-badge bounding box (see measureHeroOffset), not by reading
-         text — so unlike the old flat wordmark, nothing here depends on the
-         exact string "Libby" appearing verbatim. -->
-    <h1 class="relative z-10 flex justify-center">
-      <svg class="hero-badge hero-line from-top" viewBox="0 0 200 200" role="img" aria-label="Libby Li, photographer">
-        <circle class="badge-ring" cx="100" cy="100" r="92" />
-        <circle class="badge-dot" cx="22" cy="100" r="2.4" />
-        <circle class="badge-dot" cx="178" cy="100" r="2.4" />
-        <text class="badge-text" aria-hidden="true">
-          <textPath href="#badge-arc-top" startOffset="50%" text-anchor="middle">Libby</textPath>
-        </text>
-        <text class="badge-text badge-text-italic" aria-hidden="true">
-          <textPath href="#badge-arc-bottom" startOffset="50%" text-anchor="middle">Li</textPath>
-        </text>
-      </svg>
-    </h1>
+    <!-- Two names, two corners, instead of one centred wordmark — "Libby"
+         drops in from the top-right, "Li" rises from the bottom-left, so the
+         entrance direction matches where each one lands. -->
+    <h1 class="sr-only">Libby Li, photographer</h1>
+    <span class="hero-name hero-name-libby hero-line from-top" aria-hidden="true">Libby</span>
+    <span class="hero-name hero-name-li hero-line from-bottom" aria-hidden="true">Li</span>
 
-    <!-- Side pills -->
-    <a href="#travel" class="pill float-slow hidden lg:inline-flex absolute left-6 xl:left-14 top-1/2 -translate-y-1/2 px-5 py-3 font-mono text-[11px] tracking-[0.14em] uppercase z-10">
-      <span class="dot bg-ink"></span> Travel Works
-    </a>
-    <a href="#bruin" class="pill float-slow-rev hidden lg:inline-flex absolute right-6 xl:right-14 top-1/2 -translate-y-1/2 px-5 py-3 font-mono text-[11px] tracking-[0.14em] uppercase z-10">
-      <span class="dot bg-ink"></span> Daily Bruin
-    </a>
-
-    <!-- Bottom nav -->
-    <div class="hero-line from-bottom absolute bottom-10 left-0 right-0 z-10 flex flex-col items-center gap-6">
-      <div class="flex gap-6 font-mono text-[11px] tracking-[0.14em] uppercase text-ink-soft">
-        <a href="#personal" class="nav-link hover:text-ink">Personal</a>
-      </div>
+    <!-- The only way into the work grid now — see runEnterWork. -->
+    <div class="scroll-enter hero-line from-bottom">
+      <span class="stem"></span>
+      <span class="font-mono text-[10px] tracking-[0.3em] uppercase">Scroll to enter</span>
     </div>
   </section>
 
   </div> <!-- /view: home -->
 
-  <!-- ================= TRAVEL ================= -->
-  <section id="travel" class="view" data-view="travel">
-    <a href="#home" class="pill back-pill px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase">← Back</a>
-    <div class="gallery-viewport" id="viewport-travel">
-      <div class="gallery-track" id="grid-travel">
-        <span class="scroll-cue font-mono text-[10px] tracking-[0.2em] uppercase text-ink-soft">Scroll to discover</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= PERSONAL ================= -->
-  <section id="personal" class="view" data-view="personal">
-    <a href="#home" class="pill back-pill px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase">← Back</a>
-    <div class="gallery-viewport" id="viewport-personal">
-      <div class="gallery-track" id="grid-personal">
-        <span class="scroll-cue font-mono text-[10px] tracking-[0.2em] uppercase text-ink-soft">Scroll to discover</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= DAILY BRUIN ================= -->
-  <section id="bruin" class="view" data-view="bruin">
-    <a href="#home" class="pill back-pill px-4 py-2 font-mono text-[11px] tracking-[0.14em] uppercase">← Back</a>
-    <div class="gallery-viewport" id="viewport-bruin">
-      <div class="gallery-track" id="grid-bruin">
+  <!-- ================= WORK (unified grid) ================= -->
+  <!-- Every gallery on one endless canvas you can pan in any direction
+       (see buildWorkGrid). -->
+  <section id="work" class="view" data-view="work">
+    <div class="gallery-viewport" id="viewport-work">
+      <div class="gallery-track" id="grid-work">
         <span class="scroll-cue font-mono text-[10px] tracking-[0.2em] uppercase text-ink-soft">Scroll to discover</span>
       </div>
     </div>
@@ -777,35 +848,12 @@
   </div>
 
   <!-- Regenerated by `node build-photos.mjs` — see that file and photos/README.md.
-       Defines window.REAL_PHOTOS; empty ({}) until you've dropped photos in
-       and run the script at least once. -->
+       Defines window.REAL_PHOTOS: one entry per gallery. -->
   <script src="photos-data.js"></script>
   <script>
     // ---------------- Data ----------------
-    // Aspect ratios for the placeholder set — swap this whole block for real
-    // photo entries ({ w, h, src }) when the actual images are ready.
-    const ASPECTS = [
-      [800, 1000], [1000, 700], [700, 700], [700, 950], [1000, 650], [750, 1000],
-      [900, 600], [650, 850], [1000, 1000], [900, 1200], [1200, 800], [800, 800],
-      [640, 900], [1100, 700], [700, 1050], [950, 640], [880, 1100], [1000, 750],
-      [720, 720], [1150, 760], [760, 1000], [1000, 620], [860, 860], [680, 900],
-      [1050, 700], [820, 1080],
-    ];
-
-    // `shapeOffset` rotates which aspect ratio lands in each scatter slot, so
-    // the three galleries differ in silhouette as well as position.
-    const CATEGORY_META = {
-      // Placeholder swatches, three steps along the same ink -> cream line, so
-      // the galleries still read apart without introducing a hue.
-      travel:   { label: "Travel",      short: "Travel",   bg: "1B1815", fg: "F6F2E8", shapeOffset: 0 },
-      personal: { label: "Personal",    short: "Personal", bg: "3C3935", fg: "F6F2E8", shapeOffset: 9 },
-      bruin:    { label: "Daily Bruin", short: "Bruin",    bg: "5D5954", fg: "F6F2E8", shapeOffset: 17 },
-    };
-
-    // Seeded PRNG (mulberry32) — the scatter is randomised per gallery but
-    // stays identical across reloads and navigation, so the layout never
-    // reshuffles under the visitor mid-visit. Declared as a function (hoisted)
-    // so `categories` below can call it despite being defined first on the page.
+    // Seeded PRNG (mulberry32) — layouts are randomised but stay the same for
+    // the rest of a visit, so nothing reshuffles under the visitor.
     function makeRng(seed) {
       let t = seed >>> 0;
       return function () {
@@ -844,29 +892,13 @@
       return a;
     }
 
-    // Each scattered card is its own small gallery — a set of related shots,
-    // not a single photo. Set size varies per card (2–6), seeded so it's
-    // stable across reloads like everything else here. The card's own w/h/t
-    // double as its first set photo, so the thumbnail is just "the top of
-    // the stack" rather than a separate, unrelated cover image.
-    // Some cards land on 1 — a single photo, same as before this feature —
-    // so the badge (and the ability to scroll at all) only shows up where
-    // there's actually something to scroll through.
-    const SET_SIZE_MIN = 1;
-    const SET_SIZE_MAX = 6;
-
-    // Real photos, dropped in photos/<category>/ and picked up by
-    // `node build-photos.mjs` into photos-data.js (see that file's own
-    // comments). A category with none yet just falls through to the
-    // placeholder generator below — swap categories over one at a time,
-    // nothing here requires doing it all at once.
+    // Real photos, dropped in photos/ and picked up by `node build-photos.mjs`
+    // into photos-data.js (see that file's own comments).
     // Everything from here on used to run synchronously the instant this
     // script parsed. It's now wrapped in one async function so live photos
     // from the upload API (Phase 5) can be merged in before the single
-    // rendering pass runs — the scatter/scaling math below (scaleFor,
-    // layoutSlot, trackWidthFor) all depend on each category's *final*
-    // image count, so it has to see the merged total, not render once for
-    // local photos and again later for live ones.
+    // rendering pass runs, rather than rendering once for local photos and
+    // again later for live ones.
     (async function boot() {
       async function fetchWithTimeout(url, ms) {
         const controller = new AbortController();
@@ -878,219 +910,85 @@
         }
       }
 
-      // Live-uploaded photos (Phase 5's admin page + upload API) merge in
-      // alongside the folder-based ones from photos-data.js — both produce
-      // the same {sets:[{w,h,t,src,clip}]} card shape, so nothing past this
-      // point can tell which source a given card came from. The VM being
-      // slow, down, or a category having nothing uploaded yet all just
-      // leave that category exactly as photos-data.js already left it.
+      // Live-uploaded galleries (the upload page + API) are added after the
+      // folder-based ones from photos-data.js — both have the same
+      // {sets:[{w,h,t,src}]} shape, so nothing past this point can tell which
+      // source a gallery came from. If the server is slow or down, the site
+      // just shows the folder-based galleries.
       const API_BASE = "https://upload.libbyli.me";
-      const REAL_PHOTOS = { ...(window.REAL_PHOTOS || {}) };
-      await Promise.all(
-        Object.keys(CATEGORY_META).map(async (key) => {
-          try {
-            const res = await fetchWithTimeout(`${API_BASE}/api/photos?category=${key}`, 4000);
-            if (!res.ok) return;
-            const cards = await res.json();
-            if (!cards.length) return;
-            const liveCards = cards.map((card) => ({
-              sets: card.photos.map((p) => ({
-                w: p.width,
-                h: p.height,
-                t: card.title,
-                src: `${API_BASE}/uploads/${p.filename}`,
-                clip: false,
-              })),
-            }));
-            REAL_PHOTOS[key] = [...(REAL_PHOTOS[key] || []), ...liveCards];
-          } catch {
-            // Offline, timed out, or the API errored — fall back silently.
-          }
-        })
-      );
-
-    const categories = Object.fromEntries(
-      Object.entries(CATEGORY_META).map(([key, meta]) => {
-        const real = REAL_PHOTOS[key];
-        if (real && real.length) {
-          // Each entry is already one card's full set — build-photos.mjs
-          // put a loose file in as a set of one and a subfolder in as a
-          // set of however many images it held. The cover (what the grid
-          // shows) is just that set's first photo.
-          const images = real.map((card) => {
-            const cover = card.sets[0];
-            return { w: cover.w, h: cover.h, t: cover.t, src: cover.src, clip: false, sets: card.sets };
-          });
-          return [key, { ...meta, images }];
+      const galleryData = [...(window.REAL_PHOTOS || [])];
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/api/photos`, 4000);
+        if (res.ok) {
+          const live = await res.json();
+          galleryData.push(...live.map((card) => ({
+            sets: card.photos.map((p) => ({
+              w: p.width,
+              h: p.height,
+              t: card.title,
+              src: `${API_BASE}/uploads/${p.filename}`,
+            })),
+          })));
         }
-        const images = ASPECTS.map((_, i) => {
-          const [w, h] = ASPECTS[(i + meta.shapeOffset) % ASPECTS.length];
-          const t = `${meta.short} ${String(i + 1).padStart(2, "0")}`;
-          const setRng = makeRng(seedFrom(`${key}-${i}-set`));
-          const setSize = SET_SIZE_MIN + Math.floor(setRng() * (SET_SIZE_MAX - SET_SIZE_MIN + 1));
-          const sets = Array.from({ length: setSize }, (_, si) => {
-            const [sw, sh] = ASPECTS[(i + meta.shapeOffset + si * 7) % ASPECTS.length];
-            return { w: sw, h: sh, t, clip: key === "bruin" && i === 1 && si === 0 };
-          });
-          return { w, h, t, clip: key === "bruin" && i === 1, sets };
-        });
-        return [key, { ...meta, images }];
-      })
-    );
+      } catch {
+        // Offline, timed out, or the API errored — fall back silently.
+      }
+      pageLoader.report("data", 1);
 
-    // Locally-generated SVG placeholders — no external service, no network
-    // flakiness, instant paint. A category with real photos in photos-data.js
-    // (see build-photos.mjs) skips all of this — item.src just points at the
-    // real file. Once every category has real photos, this whole function,
-    // and the ASPECTS placeholder set above, can go.
-    function imgUrl(cat, item) {
-      if (item.src) return item.src;
-      const bg = item.clip ? "EBE7DD" : cat.bg;
-      const fg = item.clip ? "1B1815" : cat.fg;
-      const lines = item.clip ? ["DAILY BRUIN", "ARCHIVE SCAN"] : [item.t];
-      const fontSize = Math.round(item.w * 0.062);
-      const lineHeight = fontSize * 1.4;
-      const startY = item.h / 2 - ((lines.length - 1) * lineHeight) / 2;
-      const tspans = lines
-        .map((l, i) => `<tspan x="50%" y="${startY + i * lineHeight}">${l}</tspan>`)
-        .join("");
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${item.w}" height="${item.h}" viewBox="0 0 ${item.w} ${item.h}"><rect width="100%" height="100%" fill="#${bg}"/><text font-family="IBM Plex Mono, monospace" font-size="${fontSize}" letter-spacing="1" fill="#${fg}" text-anchor="middle">${tspans}</text></svg>`;
-      return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-    }
+    // One entry per gallery (a single photo is a gallery of one). The cover —
+    // what the grid and hero show — is its first photo; t is its name.
+    const galleries = galleryData.map((card) => {
+      const cover = card.sets[0];
+      return { w: cover.w, h: cover.h, t: cover.t, src: cover.src, sets: card.sets };
+    });
 
-    // ---------------- Render grids ----------------
-    const gridEls = {
-      travel: document.getElementById("grid-travel"),
-      personal: document.getElementById("grid-personal"),
-      bruin: document.getElementById("grid-bruin"),
-    };
+    // ---------------- Render grid ----------------
+    // Every gallery on one endless canvas. Each card carries its gallery's
+    // index, which is how the hero's floating cards find their own slot.
+    const gridWork = document.getElementById("grid-work");
 
-    // Hand-tuned scatter field: [x% of track width, y% of viewport height, size].
-    // Neighbouring x positions get widely separated y values so photos read as
-    // freely scattered without colliding, and the big frames are kept high
-    // enough that their full height still clears the bottom edge.
-    const LAYOUT = [
-      [1, 26, "m"],  [4, 58, "s"],  [8, 7, "l"],   [12, 40, "s"], [15, 70, "s"],
-      [19, 20, "l"], [23, 50, "m"], [26, 7, "s"],  [30, 32, "l"], [34, 68, "m"],
-      [38, 14, "m"], [41, 44, "s"], [45, 78, "m"], [49, 8, "m"],  [53, 36, "l"],
-      [57, 66, "s"], [61, 18, "s"], [64, 46, "l"], [68, 79, "m"], [72, 7, "m"],
-      [76, 30, "s"], [80, 56, "m"], [85, 12, "l"], [89, 42, "s"], [93, 76, "s"],
-      [96, 22, "m"],
-    ];
+    (function buildWorkGrid() {
+      // The flex-wrap column in .gallery-track places every card
+      // automatically — no positions to compute, and no limit on how many
+      // columns (or how tall a column gets) it grows to, so unlike the old
+      // hand-placed scatter there's nothing to run out of or repeat no
+      // matter how large the combined library gets. Each card's own
+      // aspect-ratio is what lets it keep its real width at the shared
+      // .photo-card height, rather than being cropped into a uniform cell.
+      const rng = makeRng(seedFrom("work-grid") ^ LAYOUT_SEED);
+      const order = shuffled([...galleries.keys()], rng);
 
-    // Base s/m/l sizes, tuned for a full 26-card placeholder gallery. A
-    // category with far fewer real photos scales these up — see scaleFor()
-    // below — so a couple of photos still cover a real fraction of the page
-    // instead of sitting small in the one scatter slot they happened to land on.
-    const SIZE_BASE = {
-      s: { min: 64, vw: 6.5, max: 104 },
-      m: { min: 84, vw: 9, max: 142 },
-      l: { min: 104, vw: 11.5, max: 184 },
-    };
-    function sizeWidthFor(size, scale) {
-      const b = SIZE_BASE[size];
-      return `clamp(${Math.round(b.min * scale)}px, ${(b.vw * scale).toFixed(2)}vw, ${Math.round(b.max * scale)}px)`;
-    }
-    // Area (not width) is what should roughly track 1/count, so width scales
-    // by its square root — capped so a single photo doesn't balloon into
-    // something ungainly. At the full 26 cards this is exactly 1 (no change).
-    function scaleFor(count) {
-      return clamp(Math.sqrt(LAYOUT.length / Math.max(count, 1)), 1, 2.2);
-    }
-    // LAYOUT's x-values already run roughly left-to-right in array order —
-    // with a full 26 cards that's incidental, but it means sampling `count`
-    // evenly-spaced indices out of it (instead of just the first `count`)
-    // spreads a handful of cards across the whole width instead of bunching
-    // them in whatever corner the array happens to start in.
-    function layoutSlot(count, i) {
-      if (count >= LAYOUT.length) return LAYOUT[i % LAYOUT.length];
-      const idx = Math.round(i * (LAYOUT.length - 1) / Math.max(count - 1, 1));
-      return LAYOUT[idx];
-    }
-    // Bigger cards alone don't fix the empty feeling if they're still
-    // scattered across a track sized for 26 of them — 2 large photos on a
-    // 170vw track just means a long empty scroll between them. The track
-    // shrinks toward MIN_TRACK_VW as card count (and card size) drops, and
-    // is exactly the original width at a full 26 cards.
-    const MOBILE_TRACK = window.matchMedia("(max-width: 860px)").matches;
-    const BASE_TRACK_VW = MOBILE_TRACK ? 430 : 170;
-    const MIN_TRACK_VW = MOBILE_TRACK ? 160 : 110; // still > 100vw, so there's always a little real scroll
-    function trackWidthFor(count, scale) {
-      const density = clamp((count * scale) / LAYOUT.length, 0, 1);
-      return `${Math.round(MIN_TRACK_VW + (BASE_TRACK_VW - MIN_TRACK_VW) * density)}vw`;
-    }
-
-    Object.entries(categories).forEach(([key, cat]) => {
-      const grid = gridEls[key];
-      const rng = makeRng(seedFrom(key) ^ LAYOUT_SEED);
-      const scale = scaleFor(cat.images.length);
-      grid.style.width = trackWidthFor(cat.images.length, scale);
-      // Which photo lands in which of the evenly-spread slots is reshuffled
-      // per load — the slots themselves (and their non-colliding spacing)
-      // stay exactly as hand-tuned in LAYOUT.
-      const slotOrder = shuffled([...Array(cat.images.length).keys()], rng);
-
-      cat.images.forEach((item, i) => {
-        const [x, y, size] = layoutSlot(cat.images.length, slotOrder[i]);
-        // Bounded jitter: enough to make each gallery read differently, small
-        // enough that the hand-tuned spacing still holds.
-        const jx = (rng() - 0.5) * 3; // ±1.5%
-        const jy = (rng() - 0.5) * 6; // ±3%
-
+      order.forEach((idx, i) => {
+        const item = galleries[idx];
         const card = document.createElement("div");
         card.className = "photo-card reveal";
         card.tabIndex = 0;
-        card.dataset.cat = key;
-        card.dataset.index = i;
-        card.style.left = `${clamp(x + jx, 0.5, 97.5)}%`;
-        card.dataset.top = clamp(y + jy, 6, 80);
-        card.style.top = `${card.dataset.top}%`;
-        card.style.width = sizeWidthFor(size, scale);
-        card.style.transitionDelay = `${Math.min(i * 35, 500)}ms`;
-        // The badge is the only hint a card holds more than one photo — it
-        // only appears when there's something behind the cover to find.
-        const setBadge = item.sets.length > 1
-          ? `<span class="set-badge font-mono">${item.sets.length}</span>`
-          : "";
+        card.dataset.index = idx;
+        card.style.transitionDelay = `${Math.min(i * 12, 400)}ms`;
         card.innerHTML = `
-          <div class="photo-frame" style="aspect-ratio:${item.w}/${item.h}">
-            <img src="${imgUrl(cat, item)}" alt="${cat.label} photograph ${i + 1}" width="${item.w}" height="${item.h}" />
-            ${setBadge}
-          </div>
-          <span class="card-count font-mono">${String(i + 1).padStart(2, "0")} / ${String(cat.images.length).padStart(2, "0")}</span>
+          <div class="photo-frame" style="aspect-ratio:${item.w}/${item.h}"><img /></div>
+          <span class="card-count font-mono"></span>
         `;
-        grid.appendChild(card);
+        // Names can come from the upload page, so they go in as text, never HTML.
+        const img = card.querySelector("img");
+        img.src = item.src;
+        img.alt = item.t;
+        card.querySelector(".card-count").textContent = item.t;
+        gridWork.appendChild(card);
       });
-    });
+    })();
 
-    // A gallery is exactly one screen tall and never scrolls vertically, so a
-    // card hanging past the bottom edge is simply lost — its caption sliced off
-    // with no way to reach it. Pull any overhang back inside. Measured from
-    // layout offsets rather than bounding rects, so a reveal or magnify
-    // transform in flight can't skew the reading, and always recomputed from
-    // the card's original position so repeated passes don't creep upward.
-    const EDGE_INSET = 18; // px of breathing room above the bottom rule
-    function fitCards(track) {
-      const h = track.clientHeight;
-      if (!h) return; // hidden view — offsets all read as zero
-      const limit = h - EDGE_INSET;
-      track.querySelectorAll(".photo-card").forEach((card) => {
-        card.style.top = `${card.dataset.top}%`;
-        const over = card.offsetTop + card.offsetHeight - limit;
-        if (over > 0) card.style.top = `${((card.offsetTop - over) / h) * 100}%`;
-      });
-    }
-    const fitAllCards = () => Object.values(gridEls).forEach(fitCards);
-    fitAllCards();
-    window.addEventListener("resize", fitAllCards);
-
-    // ---------------- Horizontal scroll interaction ----------------
-    // Vertical wheel/trackpad gestures pan the strip sideways; released at
-    // either edge so page scroll continues normally once a strip is exhausted.
+    // ---------------- 360° scroll interaction ----------------
+    // A real 2D pan, not a horizontal-only strip: wheel/trackpad gestures
+    // move the canvas in whatever direction the gesture itself points
+    // (deltaX -> sideways, deltaY -> up/down), each released at its own
+    // edge so page scroll continues normally once the canvas is exhausted
+    // in that direction.
     //
-    // Wheel input feeds a target position, and a damped spring eases the real
-    // scroll toward it each frame. Velocity builds from rest and decays back to
-    // rest, so motion slows at both ends of the gesture instead of snapping.
+    // Wheel input feeds a target position per axis, and a damped spring
+    // eases the real scroll toward each one every frame. Velocity builds
+    // from rest and decays back to rest, so motion slows at both ends of
+    // the gesture instead of snapping.
     const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // Critically damped: for this integrator, no-overshoot requires
     // (1 + d - d*k)^2 >= 4d. At k = 0.045 that puts the boundary at d ~= 0.681,
@@ -1099,38 +997,45 @@
     const SPRING_STIFFNESS = 0.045; // pull toward target per frame
     const SPRING_DAMPING = 0.67;    // velocity retained per frame
     const SETTLE_EPSILON = 0.25;    // px — below this the motion is imperceptible
-    // Near either end, each wheel notch contributes progressively less travel,
-    // so the strip drifts into the boundary instead of hitting a hard clamp.
+    // Near either edge, each wheel notch contributes progressively less
+    // travel, so the canvas drifts into the boundary instead of hitting a
+    // hard clamp.
     const EDGE_SOFT_ZONE = 420;     // px of run-in over which input is damped
 
     document.querySelectorAll(".gallery-viewport").forEach((vp) => {
-      // `current` is the authoritative float position. Reading it back from
-      // vp.scrollLeft instead would be lossy — the DOM rounds scroll offsets to
-      // whole pixels, so sub-pixel steps would vanish, the distance-to-target
-      // would never reach zero, and the rAF loop would spin forever.
-      let current = vp.scrollLeft;
-      let target = vp.scrollLeft;
-      let velocity = 0;
+      // `current*` is the authoritative float position on each axis.
+      // Reading it back from scrollLeft/scrollTop instead would be lossy —
+      // the DOM rounds scroll offsets to whole pixels, so sub-pixel steps
+      // would vanish, the distance-to-target would never reach zero, and
+      // the rAF loop would spin forever.
+      let currentX = vp.scrollLeft, targetX = vp.scrollLeft, velocityX = 0;
+      let currentY = vp.scrollTop, targetY = vp.scrollTop, velocityY = 0;
       let rafId = null;
-      const maxScroll = () => vp.scrollWidth - vp.clientWidth;
+      const maxX = () => vp.scrollWidth - vp.clientWidth;
+      const maxY = () => vp.scrollHeight - vp.clientHeight;
       // Exposed so activateView can force a resync once this gallery is
-      // genuinely on screen — see the note on GALLERY_SCROLL_SYNC below for
-      // why the "scroll" listener further down isn't enough on its own.
-      vp._syncScrollSpring = () => { current = target = vp.scrollLeft; };
+      // genuinely on screen — a display:none viewport reports both scroll
+      // offsets as 0, which would otherwise overwrite the real position the
+      // instant this element becomes visible again.
+      vp._syncScrollSpring = () => {
+        currentX = targetX = vp.scrollLeft;
+        currentY = targetY = vp.scrollTop;
+      };
 
-      function tick() {
+      function step(current, target, velocity) {
         const dist = target - current;
-        velocity = (velocity + dist * SPRING_STIFFNESS) * SPRING_DAMPING;
-        if (Math.abs(dist) < SETTLE_EPSILON && Math.abs(velocity) < SETTLE_EPSILON) {
-          current = target; // settle exactly, then stop burning frames
-          vp.scrollLeft = target;
-          velocity = 0;
-          rafId = null;
-          return;
-        }
-        current += velocity;
-        vp.scrollLeft = current;
-        rafId = requestAnimationFrame(tick);
+        const v = (velocity + dist * SPRING_STIFFNESS) * SPRING_DAMPING;
+        const settled = Math.abs(dist) < SETTLE_EPSILON && Math.abs(v) < SETTLE_EPSILON;
+        return settled ? { current: target, velocity: 0, settled: true } : { current: current + v, velocity: v, settled: false };
+      }
+      function tick() {
+        const rx = step(currentX, targetX, velocityX);
+        const ry = step(currentY, targetY, velocityY);
+        currentX = rx.current; velocityX = rx.velocity;
+        currentY = ry.current; velocityY = ry.velocity;
+        vp.scrollLeft = currentX;
+        vp.scrollTop = currentY;
+        rafId = (rx.settled && ry.settled) ? null : requestAnimationFrame(tick);
       }
       function startSpring() {
         if (rafId === null) rafId = requestAnimationFrame(tick);
@@ -1138,68 +1043,77 @@
       function stopSpring() {
         if (rafId !== null) cancelAnimationFrame(rafId);
         rafId = null;
-        velocity = 0;
-        current = target = vp.scrollLeft;
+        velocityX = velocityY = 0;
+        currentX = targetX = vp.scrollLeft;
+        currentY = targetY = vp.scrollTop;
+      }
+      // Tapers input as an edge approaches, so arrival is a glide, not a
+      // stop — shared by both axes, just with different bounds each time.
+      function taperedTarget(target, delta, max) {
+        if (max <= 0) return target;
+        const goingPositive = delta > 0;
+        if ((goingPositive && target >= max - 0.5) || (!goingPositive && target <= 0.5)) return target;
+        const remaining = goingPositive ? max - target : target;
+        const taper = remaining < EDGE_SOFT_ZONE ? Math.max(0.12, remaining / EDGE_SOFT_ZONE) : 1;
+        return clamp(target + delta * taper, 0, max);
       }
 
       vp.addEventListener(
         "wheel",
         (e) => {
-          const max = maxScroll();
-          if (max <= 0) return;
-          if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // native horizontal gesture, leave it alone
-          const goingRight = e.deltaY > 0;
-          // Compare against the target, not the live position, so the strip
-          // hands scrolling back to the page only once it's truly exhausted.
-          if ((goingRight && target >= max - 0.5) || (!goingRight && target <= 0.5)) return;
+          const mx = maxX(), my = maxY();
+          if (mx <= 0 && my <= 0) return;
           e.preventDefault();
           if (REDUCE_MOTION) {
-            vp.scrollLeft = clamp(vp.scrollLeft + e.deltaY, 0, max);
-            current = target = vp.scrollLeft;
+            vp.scrollLeft = clamp(vp.scrollLeft + e.deltaX, 0, mx);
+            vp.scrollTop = clamp(vp.scrollTop + e.deltaY, 0, my);
+            currentX = targetX = vp.scrollLeft;
+            currentY = targetY = vp.scrollTop;
             return;
           }
-          // Taper input as the edge approaches so arrival is a glide, not a stop.
-          const remaining = e.deltaY > 0 ? max - target : target;
-          const taper = remaining < EDGE_SOFT_ZONE
-            ? Math.max(0.12, remaining / EDGE_SOFT_ZONE)
-            : 1;
-          target = clamp(target + e.deltaY * taper, 0, max);
+          targetX = taperedTarget(targetX, e.deltaX, mx);
+          targetY = taperedTarget(targetY, e.deltaY, my);
           startSpring();
         },
         { passive: false }
       );
 
-      // Touch scrolls natively — stand down so the spring doesn't fight momentum.
+      // Touch scrolls natively (both axes) — stand down so the spring
+      // doesn't fight momentum.
       vp.addEventListener("touchstart", stopSpring, { passive: true });
       // Keep the target in sync when the position changes by any other means.
       vp.addEventListener("scroll", () => {
-        // A card can bleed a pixel past the bottom edge, which is enough for
-        // focusing it to nudge the track vertically. The page holds still, so
-        // pin it back — sideways is the only axis that moves.
-        if (vp.scrollTop) vp.scrollTop = 0;
-        if (rafId === null) current = target = vp.scrollLeft;
+        if (rafId === null) {
+          currentX = targetX = vp.scrollLeft;
+          currentY = targetY = vp.scrollTop;
+        }
       }, { passive: true });
 
-      // Click-and-drag panning for mouse users — stays 1:1 with the cursor.
-      let isDown = false, dragged = false, startX = 0, startScroll = 0;
+      // Click-and-drag panning for mouse users — stays 1:1 with the cursor,
+      // in whichever direction it moves.
+      let isDown = false, dragged = false, startX = 0, startY = 0, startScrollX = 0, startScrollY = 0;
       vp.addEventListener("mousedown", (e) => {
         isDown = true; dragged = false;
-        startX = e.pageX; startScroll = vp.scrollLeft;
+        startX = e.pageX; startY = e.pageY;
+        startScrollX = vp.scrollLeft; startScrollY = vp.scrollTop;
         stopSpring();
         vp.classList.add("dragging");
       });
       window.addEventListener("mousemove", (e) => {
         if (!isDown) return;
-        const dx = e.pageX - startX;
-        if (Math.abs(dx) > 4) dragged = true;
-        vp.scrollLeft = clamp(startScroll - dx, 0, maxScroll());
-        current = target = vp.scrollLeft;
+        const dx = e.pageX - startX, dy = e.pageY - startY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragged = true;
+        vp.scrollLeft = clamp(startScrollX - dx, 0, maxX());
+        vp.scrollTop = clamp(startScrollY - dy, 0, maxY());
+        currentX = targetX = vp.scrollLeft;
+        currentY = targetY = vp.scrollTop;
       });
       window.addEventListener("mouseup", () => {
         if (!isDown) return;
         isDown = false;
         vp.classList.remove("dragging");
-        current = target = vp.scrollLeft;
+        currentX = targetX = vp.scrollLeft;
+        currentY = targetY = vp.scrollTop;
       });
       // Suppress the click-to-open-lightbox when the pointer moved (was a drag, not a tap).
       vp.addEventListener(
@@ -1209,337 +1123,203 @@
       );
     });
 
-    // ---------------- Cursor magnifier ----------------
-    // Photos swell by proximity to the pointer: whatever sits under the cursor
-    // takes the full boost, neighbours taper off with distance, so the cursor
-    // reads as a lens gliding over the field.
     const FINE_POINTER = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-    const MAG_RADIUS = 340;     // px of influence around the cursor
-    const MAG_MAX_BOOST = 0.35; // extra scale on the photo under the cursor
-    // Each photo's scale rides its own critically damped spring, so it swells
-    // and relaxes with a little weight instead of snapping to the pointer.
-    // Same no-overshoot rule as the scroll: (1 + d - d*k)^2 >= 4d, which at
-    // k = 0.055 puts the boundary at d ~= 0.656.
-    const MAG_STIFFNESS = 0.055;
-    const MAG_DAMPING = 0.65;
-    const MAG_EPSILON = 0.0005; // scale units below which motion is invisible
 
-    if (FINE_POINTER && !REDUCE_MOTION) {
-      document.documentElement.classList.add("magnify");
+    // The layout measures the hero text, so let the web fonts land first —
+    // capped, so a slow font never holds the page up for long.
+    await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
 
-      document.querySelectorAll(".gallery-viewport").forEach((vp) => {
-        const track = vp.querySelector(".gallery-track");
-        const cards = [...track.querySelectorAll(".photo-card")].map((card) => ({
-          card,
-          frame: card.querySelector(".photo-frame"),
-          cur: 1,
-          vel: 0,
-          box: null,
-          z: "",
-        }));
-        if (!cards.length) return;
-
-        let vpRect = null;
-        let pointer = null; // client coords, or null when the cursor is away
-        let rafId = null;
-
-        // Measured lazily: an inactive view is display:none, where every offset
-        // reads back 0, so measuring up front would cache garbage.
-        function measure() {
-          vpRect = vp.getBoundingClientRect();
-          for (const c of cards) {
-            c.box = {
-              left: c.card.offsetLeft,
-              top: c.card.offsetTop,
-              right: c.card.offsetLeft + c.frame.offsetWidth,
-              bottom: c.card.offsetTop + c.frame.offsetHeight,
-            };
-          }
-        }
-
-        function frame() {
-          let px = null, py = null;
-          if (pointer && vpRect) {
-            // Cursor in track space, so magnification tracks the photos as the
-            // strip scrolls beneath a stationary pointer.
-            px = pointer.x - vpRect.left + vp.scrollLeft;
-            py = pointer.y - vpRect.top;
-          }
-
-          let busy = false;
-          for (const c of cards) {
-            let tgt = 1;
-            if (px !== null && c.box) {
-              // Distance to the photo's nearest edge — 0 while the cursor is
-              // inside it, so anything passed over gets the full boost.
-              const dx = Math.max(c.box.left - px, 0, px - c.box.right);
-              const dy = Math.max(c.box.top - py, 0, py - c.box.bottom);
-              const d = Math.hypot(dx, dy);
-              if (d < MAG_RADIUS) {
-                const t = 1 - d / MAG_RADIUS;
-                tgt = 1 + MAG_MAX_BOOST * t * t * (3 - 2 * t); // smoothstep falloff
-              }
-            }
-
-            const dist = tgt - c.cur;
-            c.vel = (c.vel + dist * MAG_STIFFNESS) * MAG_DAMPING;
-            if (Math.abs(dist) < MAG_EPSILON && Math.abs(c.vel) < MAG_EPSILON) {
-              c.cur = tgt;
-              c.vel = 0;
-            } else {
-              c.cur += c.vel;
-              busy = true;
-            }
-
-            c.frame.style.transform = `scale(${c.cur.toFixed(4)})`;
-            // Keep the most magnified photo above its neighbours.
-            const z = c.cur > 1.001 ? String(Math.round(c.cur * 100)) : "";
-            if (z !== c.z) { c.card.style.zIndex = z; c.z = z; }
-          }
-
-          // Only keep animating while something is actually changing. Holding
-          // the loop open merely because the pointer is inside the gallery
-          // would burn a frame every 16ms on a completely still screen.
-          rafId = busy ? requestAnimationFrame(frame) : null;
-        }
-        function start() { if (rafId === null) rafId = requestAnimationFrame(frame); }
-
-        vp.addEventListener("pointerenter", (e) => {
-          if (e.pointerType !== "mouse") return;
-          measure();
-          pointer = { x: e.clientX, y: e.clientY };
-          start();
-        });
-        vp.addEventListener("pointermove", (e) => {
-          if (e.pointerType !== "mouse") return;
-          if (!vpRect) measure();
-          pointer = { x: e.clientX, y: e.clientY };
-          start();
-        });
-        vp.addEventListener("pointerleave", () => { pointer = null; start(); });
-        // The loop stops once everything settles, so scrolling under a still
-        // pointer has to wake it — otherwise magnification would freeze while
-        // the photos slide past.
-        vp.addEventListener("scroll", () => { if (pointer) start(); }, { passive: true });
-        window.addEventListener("resize", () => {
-          vpRect = null;
-          if (pointer) measure();
-        });
-
-        // Establish inline transforms so the CSS hover lift can't fight these.
-        for (const c of cards) c.frame.style.transform = "scale(1)";
-      });
-    }
-
-    // ---------------- Hero orbit ----------------
-    // The hero's centerpiece: recent photos/mini-galleries drift in a slow,
-    // continuous ring around the circular wordmark badge. Hovering a card
-    // enlarges it and nudges its neighbours apart to make room; clicking one
-    // sends it tumbling to screen centre along a randomised path (see
-    // "Orbit card flight" below) to view it large.
+    // ---------------- Hero float (3D) ----------------
+    // Recent photos drift in a shallow 3D field around the two names —
+    // purely ambient in this resting state (see runEnterWork for what
+    // happens when a scroll gesture arrives). Where they sit is worked out
+    // from however many there are (layoutFloat3d, below), so any count reads
+    // as evenly spread rather than bunched into a few hand-placed spots.
     const MOBILE_HERO = window.matchMedia("(max-width: 640px)").matches;
-    const ORBIT_PER_CAT = MOBILE_HERO ? 3 : 4;
-    const orbitLayer = document.getElementById("hero-orbit");
-    const orbitCards = [];
+    const FLOAT3D_MAX = MOBILE_HERO ? 9 : 15; // the most recent galleries, at most this many
+    const float3dLayer = document.getElementById("hero-float3d");
+    const heroEl = document.getElementById("top");
+    const float3dCards = [];
 
-    (function buildOrbit() {
-      const rng = makeRng(seedFrom("hero-orbit") ^ LAYOUT_SEED);
-      const entries = [];
-      Object.entries(categories).forEach(([key, cat]) => {
-        const recent = cat.images.slice(-ORBIT_PER_CAT);
-        recent.forEach((item) => entries.push({ key, cat, item }));
-      });
+    (function buildFloat3d() {
+      const rng = makeRng(seedFrom("hero-float3d") ^ LAYOUT_SEED);
+      const first = Math.max(0, galleries.length - FLOAT3D_MAX);
+      const entries = galleries.slice(first).map((item, i) => ({ item, index: first + i }));
       const ordered = shuffled(entries, rng);
-      const n = ordered.length;
 
-      ordered.forEach(({ key, cat, item }, i) => {
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = "orbit-card";
-        el.setAttribute("aria-label", `View ${item.t || cat.label} photo${item.sets.length > 1 ? "s" : ""}`);
-        el.dataset.baseAngle = (i / n) * 360;
+      ordered.forEach(({ item, index }) => {
+        const el = document.createElement("div");
+        el.className = "float3d-card";
+        el.dataset.index = index;
+        el._aspect = item.w / item.h;
+        el._size = [0.82, 1, 1.18][Math.floor(rng() * 3)]; // a little size variety
+        el._rot = ((rng() - 0.5) * 6).toFixed(2); // fixed per-card tilt, degrees
 
         const inner = document.createElement("div");
-        inner.className = "orbit-card-inner";
+        inner.className = "float3d-inner";
+        const dur = 22 + rng() * 16; // 22–38s, unsynchronised per card
+        inner.style.animationDuration = `${dur.toFixed(2)}s`;
+        inner.style.animationDelay = `-${(rng() * dur).toFixed(2)}s`; // random phase
+        inner.style.setProperty("--fx", `${(10 + rng() * 14).toFixed(1)}px`);
+        inner.style.setProperty("--fy", `${(-(10 + rng() * 16)).toFixed(1)}px`);
+        inner.style.setProperty("--fz", `${(30 + rng() * 60).toFixed(1)}px`);
+        inner.style.setProperty("--frx", `${(3 + rng() * 8).toFixed(2)}deg`);
+        inner.style.setProperty("--fry", `${(-(4 + rng() * 10)).toFixed(2)}deg`);
+        inner.style.setProperty("--fr", `${(1 + rng() * 1.6).toFixed(2)}deg`);
         inner.innerHTML = `
           <div class="photo-frame" style="aspect-ratio:${item.w}/${item.h}">
-            <img src="${imgUrl(cat, item)}" alt="" />
-            ${item.sets.length > 1 ? `<span class="set-badge font-mono">${item.sets.length}</span>` : ""}
+            <img src="${item.src}" alt="" />
           </div>
         `;
         el.appendChild(inner);
-        el._item = item;
-        el._cat = cat;
-        orbitLayer.appendChild(el);
-        orbitCards.push(el);
+        float3dLayer.appendChild(el);
+        float3dCards.push(el);
       });
     })();
 
-    // One continuous rotation, plus a per-card angular displacement that
-    // eases toward "pushed away from the hovered card" — both applied every
-    // frame, since the constant rotation means every card's position is
-    // always moving, hover or not.
-    const ORBIT_PERIOD_MS = 100000; // one full revolution
-    const ORBIT_RADIUS = "clamp(150px, 29vw, 320px)";
-    orbitLayer.style.setProperty("--orbit-radius", ORBIT_RADIUS);
-    let orbitHoverIndex = null;
-    let orbitFrozen = false; // true while a card is flying to/resting at centre
-    const n = orbitCards.length;
-    const orbitDisplace = orbitCards.map(() => 0); // current eased degrees, one per card
-    const orbitScaleState = orbitCards.map(() => 1); // current eased scale, one per card
+    // The loading ring's biggest share: every hero photo downloaded and
+    // decoded, so the hero is complete the moment the cover clears.
+    const heroImages = float3dCards.map((card) => card.querySelector("img"));
+    let heroImagesLoaded = 0;
+    const heroImagesReady = Promise.all(heroImages.map((img) =>
+      (img.complete ? Promise.resolve() : new Promise((resolve) => {
+        img.addEventListener("load", resolve, { once: true });
+        img.addEventListener("error", resolve, { once: true });
+      }))
+        .then(() => (img.decode ? img.decode().catch(() => {}) : null))
+        .then(() => pageLoader.report("images", ++heroImagesLoaded / heroImages.length))
+    ));
+    if (!heroImages.length) pageLoader.report("images", 1);
 
-    function orbitTick(now) {
-      const spin = orbitFrozen ? orbitTick._holdSpin ?? 0 : (now / ORBIT_PERIOD_MS) * 360;
-      if (!orbitFrozen) orbitTick._holdSpin = spin;
+    // No cursor-parallax here — these just float in place, each on its own
+    // fixed tilt, with the actual motion coming entirely from the ambient
+    // float3dDrift keyframe animation on .float3d-inner (see the CSS).
+    float3dCards.forEach((el) => { el.style.transform = `rotate(${el._rot}deg)`; });
 
-      orbitCards.forEach((el, i) => {
-        // Signed circular distance to the hovered card, in ring positions —
-        // 0 is the hovered card itself; sign says which side of it this
-        // card sits on, so its two neighbours part in opposite directions
-        // rather than both sliding the same way.
-        let diff = orbitHoverIndex === null ? Infinity : i - orbitHoverIndex;
-        if (diff > n / 2) diff -= n;
-        if (diff < -n / 2) diff += n;
-        const dist = Math.abs(diff);
-        const targetPush = dist === 1 ? 26 : dist === 2 ? 11 : 0;
-        const targetDisplace = Math.sign(diff) * targetPush;
-        orbitDisplace[i] += (targetDisplace - orbitDisplace[i]) * 0.14;
+    // Card sizes follow the count: together the cards cover about the same
+    // share of the page whether there are 2 or 15, each card getting the
+    // same area whatever its shape. Then each is placed as far as it can get
+    // from the other cards, the page edges and the hero text (greedy, then a
+    // few passes re-placing each card against all the others, which evens
+    // out the gaps). Edges count double, so a card keeps about half the
+    // card-to-card spacing from the edge — as if the pattern carried on.
+    // Past its minimum clearance the text counts for much less, so spreading
+    // the cards apart wins over keeping them far from the words.
+    const FLOAT_COVER = MOBILE_HERO ? 0.14 : 0.12; // share of free page the cards cover
+    const FLOAT_TEXT_GAP = 28;  // minimum clear space around the hero text, px
+    const FLOAT_EDGE_GAP = 16;  // minimum clear space from the page edges, px
+    const FLOAT_DRIFT = 28;     // room for the drift animation's own travel, px
+    const FLOAT_TEXT_WEIGHT = MOBILE_HERO ? 2 : 4;
+    // Largest a card gets, as a share of the shorter side: past this, with few
+    // cards, they no longer fit the bands between the words and all bunch
+    // into the one space that is big enough.
+    const FLOAT_MAX_SIDE = 0.2;
+    const FLOAT_PASSES = 6;
 
-        const isHovered = i === orbitHoverIndex;
-        orbitScaleState[i] += ((isHovered ? 1.55 : 1) - orbitScaleState[i]) * 0.15;
-
-        const angleDeg = parseFloat(el.dataset.baseAngle) + spin + orbitDisplace[i];
-        el.style.setProperty("--orbit-angle", `${angleDeg.toFixed(2)}deg`);
-        el.style.setProperty("--orbit-scale", orbitScaleState[i].toFixed(3));
-        el.style.zIndex = isHovered ? 5 : 1;
+    // Hero text boxes, in hero coordinates. Layout offsets, not bounding
+    // rects, so the words' own entrance animation can't skew the reading.
+    function heroTextBoxes() {
+      const heroRect = heroEl.getBoundingClientRect();
+      const boxes = [];
+      const add = (l, t, w, h) => { if (w && h) boxes.push({ l, t, r: l + w, b: t + h }); };
+      [".hero-name-libby", ".hero-name-li", ".hero-label", ".scroll-enter"].forEach((sel) => {
+        const el = heroEl.querySelector(sel);
+        if (!el) return;
+        let x = 0, y = 0, n = el;
+        while (n && n !== heroEl) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+        if (n === heroEl) add(x, y, el.offsetWidth, el.offsetHeight);
+        else { const r = el.getBoundingClientRect(); add(r.left - heroRect.left, r.top - heroRect.top, r.width, r.height); }
       });
-      requestAnimationFrame(orbitTick);
+      // The fixed header's logo and (on phones) menu button sit over the hero too.
+      [document.querySelector(".site-logo"), document.getElementById("menu-btn")].forEach((el) => {
+        const r = el && el.getBoundingClientRect();
+        if (r) add(r.left - heroRect.left, r.top - heroRect.top, r.width, r.height);
+      });
+      return boxes;
     }
 
-    if (orbitCards.length) {
-      if (REDUCE_MOTION) {
-        // Static ring, no spin — hover/click still work, just no ambient motion.
-        orbitCards.forEach((el, i) => {
-          const angleDeg = (i / orbitCards.length) * 360;
-          el.style.setProperty("--orbit-angle", `${angleDeg}deg`);
-          el.style.setProperty("--orbit-scale", 1);
+    const boxGap = (a, b) => Math.hypot(
+      Math.max(0, a.l - b.r, b.l - a.r),
+      Math.max(0, a.t - b.b, b.t - a.b)
+    );
+
+    function layoutFloat3d() {
+      const W = heroEl.clientWidth, H = heroEl.clientHeight;
+      if (!W || !H || !float3dCards.length) return;
+      const rng = makeRng(seedFrom("hero-layout") ^ LAYOUT_SEED);
+      const text = heroTextBoxes();
+      const textArea = text.reduce((a, t) => a + (t.r - t.l) * (t.b - t.t), 0);
+      const free = Math.max(W * H - textArea, W * H * 0.4);
+      const step = Math.max(8, Math.min(W, H) / 50);
+      const edge = FLOAT_EDGE_GAP + FLOAT_DRIFT;
+      const clearOfText = FLOAT_TEXT_GAP + FLOAT_DRIFT;
+
+      // Shrinks everything a little and retries if the cards can't all fit
+      // clear of the text (a very small window, or a lot of photos).
+      for (let shrink = 1, attempt = 0; attempt < 6; attempt++, shrink *= 0.85) {
+        const side = Math.sqrt((free * FLOAT_COVER) / float3dCards.length) * shrink;
+        const maxSide = Math.min(W, H) * FLOAT_MAX_SIDE;
+        const cards = float3dCards.map((el) => {
+          const s = clamp(side * el._size, 28, maxSide);
+          return { el, w: s * Math.sqrt(el._aspect), h: s / Math.sqrt(el._aspect), cx: 0, cy: 0, placed: false };
         });
-      } else {
-        requestAnimationFrame(orbitTick);
-      }
-      orbitCards.forEach((el, i) => {
-        el.addEventListener("pointerenter", () => { orbitHoverIndex = i; });
-        el.addEventListener("pointerleave", () => { if (orbitHoverIndex === i) orbitHoverIndex = null; });
-        el.addEventListener("focus", () => { orbitHoverIndex = i; });
-        el.addEventListener("blur", () => { if (orbitHoverIndex === i) orbitHoverIndex = null; });
-      });
-    }
+        cards.sort((a, b) => b.w * b.h - a.w * a.h); // biggest first
 
-    // ---------------- Orbit card flight ----------------
-    // Clicking a card sends a clone of it drifting to screen centre along a
-    // randomised, gently curved path — "blowing like paper" rather than
-    // sliding there in a straight line — before settling into a plain,
-    // single-photo enlarged view. Reduced motion skips straight to the
-    // enlarged view with no flight, same convention as everywhere else here.
-    const orbitView = document.getElementById("orbit-view");
-    const orbitViewImg = document.getElementById("orbit-view-img");
-    const orbitViewCount = document.getElementById("orbit-view-count");
-    let orbitFlightCard = null;
+        // Best spot for `c` given every other card already placed.
+        function place(c) {
+          let best = null, bestScore = -Infinity;
+          const hw = c.w / 2, hh = c.h / 2;
+          for (let cy = edge + hh; cy <= H - edge - hh; cy += step) {
+            for (let cx = edge + hw; cx <= W - edge - hw; cx += step) {
+              const box = { l: cx - hw, t: cy - hh, r: cx + hw, b: cy + hh };
+              let score = 2 * Math.min(box.l, W - box.r, box.t, H - box.b);
+              let blocked = false;
+              for (const t of text) {
+                const g = boxGap(box, t);
+                if (g < clearOfText) { blocked = true; break; }
+                const weighted = clearOfText + (g - clearOfText) * FLOAT_TEXT_WEIGHT;
+                if (weighted < score) score = weighted;
+              }
+              if (blocked) continue;
+              for (const o of cards) {
+                if (o === c || !o.placed) continue;
+                const g = boxGap(box, { l: o.cx - o.w / 2, t: o.cy - o.h / 2, r: o.cx + o.w / 2, b: o.cy + o.h / 2 });
+                if (g < score) score = g;
+              }
+              score += rng() * step * 0.5; // breaks ties differently each load
+              if (score > bestScore) { bestScore = score; best = [cx, cy]; }
+            }
+          }
+          if (!best) return false;
+          [c.cx, c.cy] = best;
+          c.placed = true;
+          return true;
+        }
 
-    function cubicPoint(p0, p1, p2, p3, t) {
-      const u = 1 - t;
-      return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
-    }
+        if (!cards.every(place)) continue;
+        for (let pass = 0; pass < FLOAT_PASSES; pass++) {
+          for (const c of cards) { c.placed = false; place(c); }
+        }
 
-    function openOrbitView(card) {
-      if (orbitFrozen) return;
-      orbitFrozen = true;
-      orbitFlightCard = card;
-      const item = card._item;
-      const from = card.querySelector(".photo-frame").getBoundingClientRect();
-
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const maxW = Math.min(vw * 0.72, 720), maxH = Math.min(vh * 0.78, 720);
-      const scale = Math.min(maxW / item.w, maxH / item.h);
-      const toW = item.w * scale, toH = item.h * scale;
-      const to = { left: (vw - toW) / 2, top: (vh - toH) / 2, width: toW, height: toH };
-
-      card.style.visibility = "hidden"; // the flying clone stands in for it now
-      orbitViewImg.src = imgUrl(card._cat, item);
-      const multi = item.sets.length > 1;
-      orbitViewCount.textContent = multi ? `1 / ${item.sets.length}` : "";
-      orbitViewCount.hidden = !multi;
-
-      if (REDUCE_MOTION) {
-        orbitView.classList.add("is-open");
+        for (const c of cards) {
+          c.el.style.left = `${(((c.cx - c.w / 2) / W) * 100).toFixed(3)}%`;
+          c.el.style.top = `${(((c.cy - c.h / 2) / H) * 100).toFixed(3)}%`;
+          c.el.style.width = `${c.w.toFixed(1)}px`;
+        }
         return;
       }
-
-      // A cubic bezier from origin to destination, perturbed by a random
-      // midpoint and control points — a little different every time, the
-      // way a dropped photo would drift rather than fly a fixed line.
-      const midX = (from.left + to.left) / 2 + (Math.random() - 0.5) * 260;
-      const midY = (from.top + to.top) / 2 - 80 - Math.random() * 120;
-      const c1x = from.left + (midX - from.left) * 0.5 + (Math.random() - 0.5) * 140;
-      const c1y = from.top + (midY - from.top) * 0.5;
-      const c2x = to.left + (midX - to.left) * 0.5 + (Math.random() - 0.5) * 140;
-      const c2y = to.top + (midY - to.top) * 0.5;
-      const startRot = (Math.random() - 0.5) * 30;
-      const wobbleRot = startRot + (Math.random() - 0.5) * 50;
-
-      const clone = document.createElement("div");
-      clone.className = "orbit-flight-card";
-      clone.innerHTML = `<img src="${imgUrl(card._cat, item)}" alt="" />`;
-      clone.style.left = `${from.left}px`;
-      clone.style.top = `${from.top}px`;
-      clone.style.width = `${from.width}px`;
-      clone.style.height = `${from.height}px`;
-      document.body.appendChild(clone);
-
-      const DUR = 800;
-      const t0 = performance.now();
-      function step(now) {
-        const t = Math.min(1, (now - t0) / DUR);
-        const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
-        clone.style.left = `${cubicPoint(from.left, c1x, c2x, to.left, e)}px`;
-        clone.style.top = `${cubicPoint(from.top, c1y, c2y, to.top, e)}px`;
-        clone.style.width = `${from.width + (to.width - from.width) * e}px`;
-        clone.style.height = `${from.height + (to.height - from.height) * e}px`;
-        const rot = startRot + (wobbleRot - startRot) * Math.sin(e * Math.PI);
-        clone.style.transform = `rotate(${(rot * (1 - e)).toFixed(2)}deg)`;
-        if (t < 1) {
-          requestAnimationFrame(step);
-        } else {
-          clone.remove();
-          orbitView.classList.add("is-open");
-        }
-      }
-      requestAnimationFrame(step);
     }
-
-    function closeOrbitView() {
-      orbitView.classList.remove("is-open");
-      if (orbitFlightCard) {
-        orbitFlightCard.style.visibility = "";
-        orbitFlightCard = null;
-      }
-      orbitHoverIndex = null; // the card was hidden, not un-hovered — clear it explicitly
-      orbitFrozen = false;
-    }
-
-    orbitCards.forEach((el) => el.addEventListener("click", () => openOrbitView(el)));
-    document.getElementById("orbit-view-close").addEventListener("click", closeOrbitView);
-    orbitView.addEventListener("click", (e) => { if (e.target === orbitView) closeOrbitView(); });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && orbitView.classList.contains("is-open")) closeOrbitView();
-    });
+    layoutFloat3d();
+    pageLoader.report("layout", 1);
 
     // ---------------- Ring cursor ----------------
     // Replaces the pointer with an outlined circle that trails slightly, and
-    // floods solid over anything clickable.
+    // floods solid over links and buttons. While the loading screen is up it
+    // waits: the loading ring shrinks into it and calls placeCursorAt.
+    let placeCursorAt = null;
     if (FINE_POINTER) {
       const ring = document.getElementById("cursor-ring");
-      const TARGETS = ".photo-card, a, button, [role='button']";
+      const TARGETS = "a, button, [role='button']";
       const CURSOR_EASE = 0.2; // plain lerp: a cursor must track closely, so no
                                // spring ease-in here — that would feel laggy.
       let tx = 0, ty = 0, cx = 0, cy = 0;
@@ -1565,6 +1345,7 @@
         if (e.pointerType !== "mouse") return;
         tx = e.clientX;
         ty = e.clientY;
+        if (document.documentElement.classList.contains("cursor-pending")) return;
         if (!placed) {
           // First sighting: drop the ring straight onto the pointer rather
           // than letting it fly in from the corner.
@@ -1572,6 +1353,7 @@
           cx = tx; cy = ty;
           draw(cx, cy);
           ring.classList.add("is-visible");
+          document.documentElement.classList.add("custom-cursor");
         }
         ring.classList.toggle("over-target", !!(e.target.closest && e.target.closest(TARGETS)));
         if (REDUCE_MOTION) { cx = tx; cy = ty; draw(cx, cy); return; }
@@ -1582,7 +1364,21 @@
       document.addEventListener("mouseleave", () => ring.classList.remove("is-visible"));
       document.addEventListener("mouseenter", () => { if (placed) ring.classList.add("is-visible"); });
 
-      document.documentElement.classList.add("custom-cursor");
+      // The loading ring hands over here: the cursor ring appears at once
+      // (no fade or scale-in), exactly where the loading ring finished.
+      placeCursorAt = (x, y) => {
+        const span = ring.querySelector("span:not(.scroll-hint)");
+        cx = x; cy = y;
+        if (!placed) { tx = x; ty = y; }
+        placed = true;
+        draw(cx, cy);
+        span.style.transition = "none";
+        ring.classList.add("is-visible");
+        void span.offsetWidth;
+        span.style.transition = "";
+        document.documentElement.classList.add("custom-cursor");
+        if ((tx !== cx || ty !== cy) && rafId === null) rafId = requestAnimationFrame(tick);
+      };
     }
 
     // ---------------- Scroll reveal ----------------
@@ -1626,8 +1422,8 @@
     mobileNav.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeMenu));
 
     // ---------------- Lightbox ----------------
-    // Each card is its own small gallery now, not one photo in a category-wide
-    // filmstrip — currentCard picks the card, currentSetIndex picks a photo
+    // Each card is its own small gallery — currentCard picks the gallery,
+    // currentSetIndex picks a photo
     // within just that card's set. There's no more stepping past a card's own
     // edges into the next card's set; scrolling one runs out, same as it would
     // scrolling a real filmstrip that has a start and an end.
@@ -1635,22 +1431,21 @@
     const lbImg = document.getElementById("lb-img");
     const lbCaption = document.getElementById("lb-caption");
     const cursorRing = document.getElementById("cursor-ring");
-    let currentCat = null, currentCard = null, currentSetIndex = 0;
+    let currentCard = null, currentSetIndex = 0;
 
     function showImage() {
-      const cat = categories[currentCat];
-      const card = cat.images[currentCard];
+      const card = galleries[currentCard];
       const item = card.sets[currentSetIndex];
-      lbImg.src = imgUrl(cat, item);
+      lbImg.src = item.src;
       lbImg.alt = card.sets.length > 1
-        ? `${cat.label} photograph ${currentCard + 1}, ${currentSetIndex + 1} of ${card.sets.length}`
-        : `${cat.label} photograph ${currentCard + 1}`;
+        ? `${card.t}, photo ${currentSetIndex + 1} of ${card.sets.length}`
+        : card.t;
       lbCaption.textContent = card.sets.length > 1
         ? `${card.t} — ${currentSetIndex + 1} / ${card.sets.length}`
         : card.t;
     }
-    function openLightbox(catKey, cardIndex) {
-      currentCat = catKey; currentCard = cardIndex; currentSetIndex = 0;
+    function openLightbox(cardIndex) {
+      currentCard = cardIndex; currentSetIndex = 0;
       showImage();
       lightbox.classList.add("open");
       cursorRing.classList.add("lightbox-mode");
@@ -1660,7 +1455,7 @@
       cursorRing.classList.remove("lightbox-mode");
     }
     function step(delta) {
-      const card = categories[currentCat].images[currentCard];
+      const card = galleries[currentCard];
       const next = clamp(currentSetIndex + delta, 0, card.sets.length - 1);
       if (next === currentSetIndex) return;
       currentSetIndex = next;
@@ -1668,7 +1463,7 @@
     }
 
     document.querySelectorAll(".photo-card").forEach((card) => {
-      const open = () => openLightbox(card.dataset.cat, parseInt(card.dataset.index, 10));
+      const open = () => openLightbox(parseInt(card.dataset.index, 10));
       card.addEventListener("click", open);
       card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     });
@@ -1720,16 +1515,17 @@
     }, { passive: true });
 
     // ---------------- View routing ----------------
-    // Each view is a self-contained screen, reachable only via nav links
-    // (header, hero pills, hero nav). Hash-based so links stay shareable and
-    // the browser back button works.
-    const GALLERY_VIEWS = ["travel", "personal", "bruin"];
+    // Just two screens now: the hero and the work grid. Hash-based so the
+    // grid stays linkable and the browser back button works, but the actual
+    // hero->work trip is triggered by a scroll gesture (see the listener
+    // below runEnterWork), not by clicking a link — the hash update there is
+    // a side effect for shareability, not the trigger itself.
     const viewEls = {
       home: document.querySelector('[data-view="home"]'),
-      travel: document.querySelector('[data-view="travel"]'),
-      personal: document.querySelector('[data-view="personal"]'),
-      bruin: document.querySelector('[data-view="bruin"]'),
+      work: document.querySelector('[data-view="work"]'),
     };
+    const workViewport = viewEls.work.querySelector(".gallery-viewport");
+    const workGridTrack = viewEls.work.querySelector(".gallery-track");
 
     function playReveal(container) {
       const els = container.querySelectorAll(".reveal");
@@ -1738,47 +1534,61 @@
       requestAnimationFrame(() => els.forEach((el) => el.classList.add("is-visible")));
     }
 
-    function activateView(name) {
+    function activateView(name, { skipReveal = false } = {}) {
       Object.entries(viewEls).forEach(([key, el]) => el.classList.toggle("active", key === name));
-      if (name !== "home") {
-        // Only measurable now that the view is on screen — a display:none
-        // gallery reports zero offsets.
-        fitCards(viewEls[name].querySelector(".gallery-track"));
-        playReveal(viewEls[name]);
+      if (name === "work") {
+        // runEnterWork's own FLIP flight + bloom already landed every card at
+        // rest — replaying the .reveal fade here would snap the just-arrived
+        // featured cards invisible for a frame (right as their flight clone
+        // is deleted) and fade them back in a second time. skipReveal is set
+        // for exactly that call; a direct/hash-triggered arrival still gets
+        // the normal reveal since nothing animated it in yet.
+        if (!skipReveal) playReveal(viewEls.work);
         // The wheel/drag spring's own idea of the scroll position (in a
-        // closure, not read from the DOM each frame) can be stale here: the
-        // float-flight and gallery-crossfade code both position this strip
-        // before this point, sometimes while it's still display:none for
-        // measurement — and a display:none element reports scrollLeft as 0,
-        // which is exactly the value a same-tick native scroll event fires
-        // with while that's still true, overwriting the correct sync moments
-        // earlier. This element is genuinely on screen now, so this reading
-        // is trustworthy: without it, the visitor's first scroll snaps the
-        // strip back toward 0 before continuing from the real position.
-        viewEls[name].querySelector(".gallery-viewport")._syncScrollSpring();
+        // closure, not read from the DOM each frame) can be stale here:
+        // runEnterWork positions this strip before this point, while it's
+        // still display:none for measurement — and a display:none element
+        // reports scrollLeft as 0, which is exactly the value a same-tick
+        // native scroll event fires with while that's still true,
+        // overwriting the correct sync moment. This element is genuinely on
+        // screen now, so this reading is trustworthy.
+        workViewport._syncScrollSpring();
       }
       document.title = name === "home"
         ? "Libby Li — Travel Photography & Photojournalism"
-        : `${categories[name].label} — Libby Li`;
+        : "Work — Libby Li";
     }
 
-    // "Through the letters" transition: a full-screen clone of the hero
-    // wordmark rushes toward (or recedes from) the viewer while the view
-    // swaps underneath, hidden behind its coverage. Entering a gallery
-    // zooms the letters up and away; returning home reverses it.
-    const overlay = document.getElementById("transition-overlay");
     let currentView = null;
     let isTransitioning = false;
-    const TRANSITION_MS = 1050;
-    const SWAP_AT_ENTER = 220; // ms — early, while the overlay still fully covers
-    // Returning home plays the same motion backwards, so the view swaps at the
-    // mirrored moment: as far from the end as the enter swap is from the start.
-    const SWAP_AT_EXIT = TRANSITION_MS - SWAP_AT_ENTER;
 
-    // Leaving a gallery, the wordmark shrinks back to rest and the hero is
-    // revealed behind it. Showing a display:none view restarts its CSS
-    // animations, so without this the hero would be caught part-way through its
-    // entrance at the hand-off instead of sitting still to be matched.
+    // ---------------- Enter work: scroll carries the hero into the grid ----------------
+    // The featured hero-float cards fly precisely into their own grid slot
+    // (a FLIP, same technique the site used to fly a clicked photo into its
+    // gallery); every other grid card blooms outward from wherever the
+    // viewport is centred, arriving alongside them. Nothing is hidden behind
+    // a covering flash here — the whole point is watching it happen.
+    const ENTER_MS = 1600;
+    // The names finish leaving before any card starts moving, rather than
+    // both happening on top of each other — a beat, not a full stop.
+    const TEXT_EXIT_DELAY_MS = 540; // exitHeroText's fade is 500ms — wait it out fully
+    // Each featured card's flight starts a little after the last, so they
+    // arrive as a procession rather than all at once — capped so a hero
+    // with many featured cards doesn't stretch the whole entrance out too far.
+    const FLIGHT_STAGGER_MS = 90;
+    const FLIGHT_STAGGER_CAP_MS = 650;
+    const SETTLE_MS = 300; // final crossfade onto a sharp copy of the grid photo (runEnterWork)
+    const CLONE_FADE_MS = 200; // then the flying clone fades out from underneath it
+    const flightLayer = document.getElementById("flight-layer");
+
+    // A completed entrance animation (heroDropIn/heroRiseIn, both
+    // animation-fill-mode: forwards) keeps controlling opacity/transform
+    // even once finished — animations outrank transitions in the cascade for
+    // whichever property they touch, so a class-based transition on the same
+    // element would silently be overridden without this. Pinning via inline
+    // style (rather than a class) means the fades below — also inline — can
+    // reliably animate from a known, committed start. Left pinned for good:
+    // clearing it would replay the page-load entrance on top of a fade.
     function settleHero() {
       document.querySelectorAll("#top .hero-line").forEach((el) => {
         el.style.animation = "none";
@@ -1787,154 +1597,480 @@
       });
     }
 
-    // The overlay centres its wordmark in the viewport, but the hero's sits a
-    // little higher — the label above and tagline below make that stack
-    // asymmetric. Left uncorrected the wordmark visibly jumps at the hand-off,
-    // so measure the gap while home is on screen and shift the overlay by it.
-    let heroOffset = 0;
-    function measureHeroOffset() {
-      const heroWord = document.querySelector("#top .hero-badge");
-      const overlayWord = overlay.querySelector(".hero-badge");
-      if (!heroWord || !overlayWord) return;
-      const h = heroWord.getBoundingClientRect();
-      if (!h.height) return; // home not rendered — keep the last good value
-      const prev = overlay.style.transform;
-      overlay.style.transform = "none"; // measure the overlay's untransformed position
-      const o = overlayWord.getBoundingClientRect();
-      overlay.style.transform = prev;
-      heroOffset = Math.round(h.top - o.top);
+    const HERO_TEXT_MS = 500;
+    function heroTextEls() {
+      return {
+        libby: document.querySelector(".hero-name-libby"),
+        li: document.querySelector(".hero-name-li"),
+        rest: [document.querySelector(".scroll-enter"), document.querySelector(".hero-label"), siteLogo].filter(Boolean),
+      };
+    }
+    // The header's "Libby Li." belongs to the hero only: it leaves and
+    // returns with the other words. The Home button is its mirror image: it
+    // fades in exactly as they fade out, and out as they come back, on the
+    // same curve — so at every moment one is as visible as the other isn't.
+    // Whichever is hidden can't be clicked or tabbed to.
+    const siteLogo = document.querySelector(".site-logo");
+    const backPill = document.querySelector(".back-pill");
+    function setHeroTextTransition(value) {
+      const { libby, li, rest } = heroTextEls();
+      [libby, li, ...rest, backPill].forEach((el) => { el.style.transition = value; });
+      void document.getElementById("top").offsetWidth; // commit before values change
     }
 
-    const REVEAL_MS = 260;
+    // Words fade out and back in exactly where they sit — no movement.
+    function setHeroTextOpacity(value, instant) {
+      setHeroTextTransition(instant ? "none" : `opacity ${HERO_TEXT_MS}ms var(--ease-spring)`);
+      const { libby, li, rest } = heroTextEls();
+      [libby, li, ...rest].forEach((el) => { el.style.opacity = value; });
+      const wordsHidden = value === "0";
+      siteLogo.style.pointerEvents = wordsHidden ? "none" : "";
+      siteLogo.inert = wordsHidden;
+      backPill.style.opacity = wordsHidden ? "1" : "0";
+      backPill.style.pointerEvents = wordsHidden ? "auto" : "none";
+      backPill.inert = !wordsHidden;
+    }
+    const exitHeroText = (instant = false) => setHeroTextOpacity("0", instant);
+    const enterHeroText = (instant = false) => setHeroTextOpacity("1", instant);
 
-    // One motion, played forwards or backwards. Entering, the wordmark rushes
-    // out past the viewer (scale 1 -> 7, fading out); returning, it comes back
-    // from beyond the screen and settles (scale 7 -> 1, fading in). Starting
-    // the return at scale 7 rather than a small scale matters: the overlay is a
-    // solid cream panel, so any start below scale 1 would show its edges
-    // sweeping in as a growing rectangle.
-    function runTransition(targetName, direction) {
-      const entering = direction === "enter";
-      isTransitioning = true;
-      if (entering) measureHeroOffset(); // home is still on screen right now
-      const shift = `translateY(${heroOffset}px)`;
-
-      overlay.style.transition = "none";
-      overlay.style.opacity = entering ? "1" : "0";
-      overlay.style.transform = `${shift} scale(${entering ? 1 : 7})`;
-      void overlay.offsetWidth; // force reflow so the reset above applies before animating
-
-      requestAnimationFrame(() => {
-        overlay.style.transition = ""; // clear the inline override so the .animating rule can apply
-        overlay.classList.add("animating");
-        overlay.style.opacity = entering ? "0" : "1";
-        overlay.style.transform = `${shift} scale(${entering ? 7 : 1})`;
+    // The ambient float3dDrift animation never stops on its own — freeze it
+    // at its exact current frame, so no card drifts while the words fade or
+    // while it's being flown. The animation's own progress is saved too, so
+    // resuming picks up at exactly the frozen pose instead of restarting.
+    // Only animation-name is switched off, never the shorthand: that would
+    // also wipe each card's own inline duration and delay.
+    function freezeFloat3d() {
+      float3dCards.forEach((card) => {
+        const inner = card.querySelector(".float3d-inner");
+        if (inner._frozen) return;
+        const anim = inner.getAnimations()[0];
+        // Time into the drift, counting its negative (random-phase) delay.
+        inner._phase = anim ? (anim.effect.getComputedTiming().localTime || 0) - anim.effect.getTiming().delay : 0;
+        inner.style.transform = getComputedStyle(inner).transform;
+        inner.style.animationName = "none";
+        inner._frozen = true;
       });
+    }
+    function resumeFloat3d() {
+      float3dCards.forEach((card) => {
+        const inner = card.querySelector(".float3d-inner");
+        if (!inner._frozen) return;
+        inner.style.animationDelay = `-${Math.round(inner._phase)}ms`;
+        inner.style.animationName = "";
+        inner.style.transform = "";
+        inner._frozen = false;
+      });
+    }
 
-      setTimeout(() => {
-        activateView(targetName);
-        if (!entering) settleHero();
-      }, entering ? SWAP_AT_ENTER : SWAP_AT_EXIT);
+    // Where each (frozen) hero card really is. Not a bounding rect: each card
+    // is tilted in 3D under the layer's perspective, and a flat rect would
+    // make a flying clone snap untilted and stretched where it meets the
+    // card. The untransformed box plus both transforms reproduce it exactly.
+    function measureHero() {
+      const layerRect = float3dLayer.getBoundingClientRect();
+      const cs = getComputedStyle(float3dLayer);
+      const [pox, poy] = cs.perspectiveOrigin.split(" ").map(parseFloat);
+      return {
+        persp: parseFloat(cs.perspective) || 1400,
+        perspX: layerRect.left + pox,
+        perspY: layerRect.top + poy,
+        cards: new Map(float3dCards.map((card) => {
+          const inner = card.querySelector(".float3d-inner");
+          const outer = getComputedStyle(card).transform;
+          const innerT = inner.style.transform; // pinned by freezeFloat3d
+          // The untransformed box, exactly: offsetLeft/offsetWidth are
+          // rounded to whole pixels, but these cards sit at fractional
+          // positions and sizes, and even half a pixel shows as a nudge where
+          // a clone meets a card. So briefly drop both transforms and read the
+          // real box (restored in the same task, so nothing is ever painted).
+          const cardT = card.style.transform;
+          card.style.transform = "none";
+          inner.style.transform = "none";
+          const r = card.querySelector(".photo-frame").getBoundingClientRect();
+          card.style.transform = cardT;
+          inner.style.transform = innerT;
+          return [card, {
+            cx: r.left + r.width / 2,
+            cy: r.top + r.height / 2,
+            w: r.width,
+            h: r.height,
+            outer,
+            inner: innerT,
+          }];
+        })),
+      };
+    }
 
-      function reset() {
-        overlay.classList.remove("animating");
-        overlay.style.transition = "";
-        overlay.style.opacity = "0";
-        overlay.style.transform = "scale(1)";
+    // Two transforms for a clone laid out in `box`: `hero` makes it look
+    // exactly like hero card `g`, with perspective re-centred on the hero
+    // layer's perspective-origin as the real cards get it; `flat` is the same
+    // function list with identity values — the clone sitting in its own box.
+    // One shared list lets the browser interpolate each piece pairwise; with
+    // no tilt or depth left, perspective has no visible effect.
+    const IDENTITY_2D = "matrix(1, 0, 0, 1, 0, 0)";
+    const IDENTITY_3D = "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)";
+    // `box` is the clone's own layout box, which is always the native size of
+    // the end it lands on (the grid photo going in, the hero card coming
+    // back): the browser draws the photo at its layout size, and a clone
+    // scaled into place at the end would look a touch softer than the real
+    // thing. `grid` is the grid photo's box.
+    function flightTransforms(g, hero, box, grid = box) {
+      const outer = !g.outer || g.outer === "none" ? IDENTITY_2D : g.outer;
+      const inner = !g.inner || g.inner === "none" ? IDENTITY_2D : g.inner;
+      const idFor = (m) => (m.startsWith("matrix3d") ? IDENTITY_3D : IDENTITY_2D);
+      const ox = hero.perspX - g.cx, oy = hero.perspY - g.cy;
+      const build = (tx, ty, o, n, sx, sy) =>
+        `translate(${tx}px, ${ty}px) translate(${ox}px, ${oy}px) perspective(${hero.persp}px) ` +
+        `translate(${-ox}px, ${-oy}px) ${o} ${n} scale(${sx}, ${sy})`;
+      const bcx = box.left + box.width / 2, bcy = box.top + box.height / 2;
+      const gcx = grid.left + grid.width / 2, gcy = grid.top + grid.height / 2;
+      const sx = g.w / box.width, sy = g.h / box.height;
+      // The clone's shadow is scaled along with it, so it's drawn larger by
+      // the inverse amount — at the hero end it then matches the hero card's
+      // own shadow exactly (at the grid end it has faded out).
+      const kx = 1 / sx, ky = 1 / sy, kb = (kx + ky) / 2;
+      const shadow =
+        `0 ${ky}px ${2 * kb}px rgba(27,24,21,0.05), ` +
+        `0 ${18 * ky}px ${34 * kb}px ${-20 * kb}px rgba(27,24,21,0.4)`;
+      return {
+        hero: build(g.cx - bcx, g.cy - bcy, outer, inner, sx, sy),
+        flat: build(gcx - bcx, gcy - bcy, idFor(outer), idFor(inner), grid.width / box.width, grid.height / box.height),
+        shadow,
+      };
+    }
+
+    // The clone's box is the grid photo's exact (often fractional) box — not
+    // rounded: the photo is scaled into that exact size, and a clone even a
+    // third of a pixel taller rescales the image visibly differently.
+    function addFlightClone(card, rect) {
+      const box = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      const clone = document.createElement("div");
+      clone.className = "work-flight-card";
+      clone.style.left = `${box.left}px`;
+      clone.style.top = `${box.top}px`;
+      clone.style.width = `${box.width}px`;
+      clone.style.height = `${box.height}px`;
+      clone.innerHTML = `<div class="flight-shadow"></div><img src="${card.querySelector("img").src}" alt="" />`;
+      flightLayer.appendChild(clone);
+      return { clone, box };
+    }
+
+    // Runs `then` when the clone's transform transition finishes. Uses the
+    // animation object rather than transitionend, which doesn't reliably
+    // arrive for these clones.
+    function landWhenDone(clone, then) {
+      const flight = clone.getAnimations().find((a) => a.transitionProperty === "transform");
+      if (flight) flight.finished.then(then, () => {});
+    }
+
+    // Each hero card paired with its own slot in the grid.
+    function featuredPairs() {
+      return float3dCards
+        .map((card) => ({
+          card,
+          dest: workGridTrack.querySelector(`.photo-card[data-index="${card.dataset.index}"]`),
+        }))
+        .filter((p) => p.dest);
+    }
+    const flightStagger = (i) => Math.min(i * FLIGHT_STAGGER_MS, FLIGHT_STAGGER_CAP_MS);
+
+    function runEnterWork() {
+      isTransitioning = true;
+      closeLightbox();
+
+      if (REDUCE_MOTION) {
+        settleHero();
+        exitHeroText(true);
+        setHeroTextTransition("");
+        activateView("work");
         isTransitioning = false;
-        routeFromHash(); // reconcile in case the hash changed again mid-transition
+        return;
       }
 
+      settleHero();
+      exitHeroText();
+      freezeFloat3d();
+      // Measured right after freezing — every card is pinned at exactly
+      // this pose until its flight starts, so it can't go stale.
+      const hero = measureHero();
+
+      // A beat after the names start leaving, not on top of them.
       setTimeout(() => {
-        if (entering) return reset();
-        // The return ends with the overlay at rest over the hero. Cutting it
-        // away would pop the label, tagline and pills into existence all at
-        // once, so dissolve instead — the aligned wordmark holds still through
-        // it and the rest of the page fades up around it.
-        overlay.classList.remove("animating");
-        overlay.style.transition = `opacity ${REVEAL_MS}ms var(--ease-spring)`;
-        overlay.style.opacity = "0";
-        setTimeout(reset, REVEAL_MS);
-      }, TRANSITION_MS);
+        setHeroTextTransition(""); // fade finished; the button's hover transitions come back
+        // Reveal the grid invisibly to measure destinations: flip the active
+        // class for an instant, synchronously, so nothing paints in between.
+        viewEls.home.classList.remove("active");
+        viewEls.work.classList.add("active");
+        viewEls.work.style.visibility = "hidden";
+
+        const pairs = featuredPairs();
+
+        // Centre the viewport (both axes) on the featured cards' average
+        // position, so the flight lands somewhere visible, not past an edge.
+        let centerAlong = workViewport.clientWidth / 2;
+        let centerDown = workViewport.clientHeight / 2;
+        if (pairs.length) {
+          const avgX = pairs.reduce((a, { dest: d }) => a + d.offsetLeft + d.offsetWidth / 2, 0) / pairs.length;
+          const avgY = pairs.reduce((a, { dest: d }) => a + d.offsetTop + d.offsetHeight / 2, 0) / pairs.length;
+          const maxScrollX = Math.max(0, workGridTrack.scrollWidth - workViewport.clientWidth);
+          const maxScrollY = Math.max(0, workGridTrack.scrollHeight - workViewport.clientHeight);
+          workViewport.scrollLeft = clamp(avgX - workViewport.clientWidth / 2, 0, maxScrollX);
+          workViewport.scrollTop = clamp(avgY - workViewport.clientHeight / 2, 0, maxScrollY);
+          centerAlong = workViewport.scrollLeft + workViewport.clientWidth / 2;
+          centerDown = workViewport.scrollTop + workViewport.clientHeight / 2;
+        }
+
+        const flights = pairs.map((p) => ({ ...p, to: p.dest.querySelector(".photo-frame").getBoundingClientRect() }));
+        const featured = new Set(flights.map((f) => f.dest));
+        const lastStagger = flights.length ? flightStagger(flights.length - 1) : 0;
+
+        // Every non-featured card blooms outward from the viewport's centre,
+        // in track space, so it emerges from behind wherever the cluster landed.
+        workGridTrack.querySelectorAll(".photo-card").forEach((el) => {
+          if (featured.has(el)) return;
+          const dx = centerAlong - (el.offsetLeft + el.offsetWidth / 2);
+          const dy = centerDown - (el.offsetTop + el.offsetHeight / 2);
+          el.classList.remove("reveal", "is-visible");
+          el.style.transition = "none";
+          el.style.transform = `translate(${dx}px, ${dy}px) scale(0.2)`;
+          el.style.opacity = "0";
+        });
+
+        viewEls.work.style.visibility = "";
+        viewEls.work.classList.remove("active");
+        viewEls.home.classList.add("active"); // restored — activateView claims it for real below
+
+        // Staggered per card — a procession into the grid, not one burst.
+        flights.forEach(({ card, dest, to }, i) => {
+          const g = hero.cards.get(card);
+          const heroBox = { left: g.cx - g.w / 2, top: g.cy - g.h / 2, width: g.w, height: g.h };
+          const { clone, box } = addFlightClone(card, heroBox);
+          const t = flightTransforms(g, hero, box, to);
+          clone.style.transform = t.hero;
+          card.style.visibility = "hidden"; // the flying clone represents it now
+          dest.dataset.flying = "1";
+          const shadow = clone.firstElementChild;
+          shadow.style.boxShadow = t.shadow;
+          requestAnimationFrame(() => {
+            const timing = `${ENTER_MS}ms var(--ease-spring) ${flightStagger(i)}ms`;
+            // Once the sharp copy below covers it completely, the clone fades
+            // out too — only its outermost edge still shows past that copy's
+            // own edge, and this lets it go gradually rather than at the swap.
+            clone.style.transition =
+              `transform ${timing}, opacity ${CLONE_FADE_MS}ms ease ${flightStagger(i) + ENTER_MS}ms`;
+            clone.style.transform = t.flat;
+            clone.style.opacity = "0";
+            shadow.style.transition = `opacity ${timing}`;
+            shadow.style.opacity = "0";
+          });
+
+          // The clone is laid out at the hero card's size so the flight
+          // starts as an exact match, but the browser keeps drawing it at
+          // that resolution all the way, so it arrives a touch softer than
+          // the grid photo. Over the last stretch, where it's already within
+          // a fraction of a pixel of its slot, a flat copy of the photo at the
+          // slot's exact size fades in over it — and that copy is what the
+          // real grid photo replaces, pixel for pixel.
+          const settle = document.createElement("div");
+          settle.className = "work-flight-card flight-settle";
+          Object.assign(settle.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
+          settle.innerHTML = `<img src="${card.querySelector("img").src}" alt="" />`;
+          flightLayer.appendChild(settle);
+          requestAnimationFrame(() => {
+            settle.style.transition = `opacity ${SETTLE_MS}ms ease ${flightStagger(i) + ENTER_MS - SETTLE_MS}ms`;
+            settle.style.opacity = "1";
+          });
+        });
+        // Commit every clone's starting pose before any rAF above sets its
+        // target — a clone with no committed style yet would have nothing to
+        // transition from and would jump straight to the grid.
+        void flightLayer.offsetWidth;
+
+        // Same total length as the last (most-staggered) flight, so the bloom
+        // and the final featured card settle in the same instant.
+        const bloomMs = ENTER_MS + lastStagger;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            workGridTrack.querySelectorAll(".photo-card").forEach((el) => {
+              if (featured.has(el)) return;
+              el.style.transition = `transform ${bloomMs}ms var(--ease-spring), opacity ${bloomMs}ms var(--ease-spring)`;
+              el.style.transform = "none";
+              el.style.opacity = "1";
+            });
+          });
+        });
+
+        // The "Scroll to discover" cue fades in as the grid takes over, rather
+        // than popping in (it fades out the same way on the trip back).
+        const cue = viewEls.work.querySelector(".scroll-cue");
+        if (cue) { cue.style.transition = "none"; cue.style.opacity = "0"; }
+
+        setTimeout(() => {
+          activateView("work", { skipReveal: true });
+          flights.forEach(({ card, dest }) => {
+            card.style.visibility = "";
+            delete dest.dataset.flying;
+          });
+          flightLayer.innerHTML = "";
+          workGridTrack.querySelectorAll(".photo-card").forEach((el) => {
+            el.style.transition = "";
+            el.style.transform = "";
+            el.style.opacity = "";
+          });
+          if (cue) {
+            void cue.offsetWidth;
+            cue.style.transition = `opacity ${HERO_TEXT_MS}ms var(--ease-spring)`;
+            cue.style.opacity = "1";
+            setTimeout(() => { cue.style.transition = ""; cue.style.opacity = ""; }, HERO_TEXT_MS + 40);
+          }
+          isTransitioning = false;
+        }, lastStagger + ENTER_MS + CLONE_FADE_MS + 60);
+      }, TEXT_EXIT_DELAY_MS);
     }
 
-    // Header nav stays reachable from inside a gallery too, so you can jump
-    // Travel -> Personal directly. That used to skip straight to
-    // activateView() with no transition at all — an instant cut that always
-    // landed the new strip at scrollLeft 0, which read as snapping to the
-    // far left with no warning. This plays a quick cream flash (too short
-    // for the wordmark tunnel to make sense — there's no hero on screen to
-    // zoom through) and, underneath it, carries over how far across the
-    // previous strip you'd scrolled rather than resetting to the start.
-    const CROSSFADE_MS = 420;
-    function runGalleryCrossfade(fromView, targetView) {
+    // ---------------- Leave work: the trip in, played backwards ----------------
+    // The rest of the grid fades away, the featured photos fly from their
+    // grid slots back to their exact tilted spots on the hero (last to
+    // arrive, first to leave), and only once they've landed do the words
+    // slide back in — then the float drift resumes from its frozen pose.
+    let floatLayoutDirty = false;
+    let floatResizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(floatResizeTimer);
+      floatResizeTimer = setTimeout(() => {
+        if (viewEls.home.classList.contains("active") && !isTransitioning) layoutFloat3d();
+        else floatLayoutDirty = true;
+      }, 150);
+    });
+
+    const GRID_FADE_MS = 450;
+    function runLeaveWork() {
       isTransitioning = true;
-      const fromVp = viewEls[fromView].querySelector(".gallery-viewport");
-      const fromMax = fromVp.scrollWidth - fromVp.clientWidth;
-      const scrollRatio = fromMax > 0 ? fromVp.scrollLeft / fromMax : 0;
+      closeLightbox();
+      // Hidden from the start (instantly — the hero isn't on screen yet);
+      // they're the last thing to come back.
+      settleHero();
+      exitHeroText(true);
 
-      overlay.classList.add("plain-swap");
-      overlay.style.transition = "none";
-      overlay.style.opacity = "0";
-      overlay.style.transform = "scale(1)";
-      void overlay.offsetWidth; // force reflow so the reset above applies before animating
+      if (REDUCE_MOTION) {
+        activateView("home");
+        enterHeroText(true);
+        isTransitioning = false;
+        return;
+      }
 
-      requestAnimationFrame(() => {
-        overlay.style.transition = `opacity ${CROSSFADE_MS / 2}ms var(--ease-spring)`;
-        overlay.style.opacity = "1";
-      });
+      const pairs = featuredPairs();
+      const featured = new Set(pairs.map((p) => p.dest));
+      const fading = [
+        ...[...workGridTrack.querySelectorAll(".photo-card")].filter((el) => !featured.has(el)),
+        ...viewEls.work.querySelectorAll(".scroll-cue"),
+      ];
+      fading.forEach((el) => { el.style.transition = `opacity ${GRID_FADE_MS}ms var(--ease-spring)`; });
+      void viewEls.work.offsetWidth;
+      fading.forEach((el) => { el.style.opacity = "0"; });
 
       setTimeout(() => {
-        // Same trick as measureHeroOffset / the float-to-gallery flight:
-        // position the incoming strip while it's still hidden behind the
-        // opaque overlay, so there's nothing to see snap into place.
-        activateView(targetView);
-        const targetVp = viewEls[targetView].querySelector(".gallery-viewport");
-        const targetGrid = viewEls[targetView].querySelector(".gallery-track");
-        const targetMax = Math.max(0, targetGrid.scrollWidth - targetVp.clientWidth);
-        targetVp.scrollLeft = Math.round(scrollRatio * targetMax);
-        // activateView() already resynced the wheel/drag spring's closure
-        // state once, but that was a step earlier than this line — before
-        // this scrollLeft was set. Do it again now that it has been.
-        targetVp._syncScrollSpring();
+        // Where each featured photo sits right now — magnifier and all.
+        const starts = pairs.map((p) => p.dest.querySelector(".photo-frame").getBoundingClientRect());
 
-        overlay.style.transition = `opacity ${CROSSFADE_MS / 2}ms var(--ease-spring)`;
-        overlay.style.opacity = "0";
+        // Grid out, hero in, in one synchronous step; the clones placed
+        // below cover the featured photos' spots before anything paints.
+        activateView("home");
+        if (floatLayoutDirty) { layoutFloat3d(); floatLayoutDirty = false; }
+        freezeFloat3d(); // no-op after a trip in; pins the pose on a direct #work load
+        const hero = measureHero();
+        const lastStagger = pairs.length ? flightStagger(pairs.length - 1) : 0;
+
+        pairs.forEach(({ card }, i) => {
+          // Laid out at the hero card's own size (where it lands) and scaled
+          // up to the grid photo to start with — see flightTransforms.
+          const g = hero.cards.get(card);
+          const heroBox = { left: g.cx - g.w / 2, top: g.cy - g.h / 2, width: g.w, height: g.h };
+          const { clone, box } = addFlightClone(card, heroBox);
+          const t = flightTransforms(g, hero, box, starts[i]);
+          clone.style.transform = t.flat;
+          card.style.visibility = "hidden";
+          const shadow = clone.firstElementChild;
+          shadow.style.boxShadow = t.shadow;
+          shadow.style.opacity = "0";
+          requestAnimationFrame(() => {
+            // Reverse order: whichever flew in last flies out first.
+            const timing = `${ENTER_MS}ms var(--ease-spring) ${lastStagger - flightStagger(i)}ms`;
+            clone.style.transition = `transform ${timing}`;
+            clone.style.transform = t.hero;
+            shadow.style.transition = `opacity ${timing}`;
+            shadow.style.opacity = "1";
+            landWhenDone(clone, () => { clone.style.willChange = "auto"; });
+          });
+        });
+        void flightLayer.offsetWidth; // commit starting poses (see runEnterWork)
+
         setTimeout(() => {
-          overlay.classList.remove("plain-swap");
-          isTransitioning = false;
-          routeFromHash(); // reconcile in case the hash changed again mid-transition
-        }, CROSSFADE_MS / 2);
-      }, CROSSFADE_MS / 2);
+          pairs.forEach(({ card }) => { card.style.visibility = ""; });
+          flightLayer.innerHTML = "";
+          enterHeroText();
+
+          setTimeout(() => {
+            resumeFloat3d();
+            setHeroTextTransition("");
+            fading.forEach((el) => { el.style.transition = ""; el.style.opacity = ""; });
+            isTransitioning = false;
+          }, HERO_TEXT_MS + 40);
+        }, lastStagger + ENTER_MS + 60);
+      }, GRID_FADE_MS);
     }
 
     function routeFromHash() {
       if (isTransitioning) return;
-      // The header sits above the lightbox, so its nav stays clickable while a
-      // photo is open. Dismiss the viewer on any route change, otherwise it
-      // would hang over the new view still showing the old gallery's photo.
-      closeLightbox();
       const hash = location.hash.slice(1);
-      const targetView = GALLERY_VIEWS.includes(hash) ? hash : "home";
+      const targetView = hash === "work" ? "work" : "home";
 
-      if (targetView !== currentView) {
-        if (currentView === null) {
-          // Initial load — land directly on the right view, no animation.
-          activateView(targetView);
-        } else if (currentView === "home" && targetView !== "home") {
-          runTransition(targetView, "enter");
-        } else if (currentView !== "home" && targetView === "home") {
-          runTransition("home", "exit");
-        } else {
-          runGalleryCrossfade(currentView, targetView);
-        }
+      if (targetView === currentView) return; // e.g. our own hash update inside runEnterWork/goHome
+      if (currentView === null) {
+        // Initial load — land directly on the right view, no animation.
+        activateView(targetView);
+        if (targetView === "work") { exitHeroText(true); setHeroTextTransition(""); }
         currentView = targetView;
+        return;
       }
+      currentView = targetView;
+      if (targetView === "work") runEnterWork();
+      else runLeaveWork();
     }
 
+    function goToWork() {
+      if (document.documentElement.classList.contains("cursor-pending")) return;
+      if (isTransitioning || currentView !== "home") return;
+      currentView = "work";
+      runEnterWork();
+      if (location.hash !== "#work") location.hash = "work";
+    }
+
+    // The only entry point into the work grid: any scroll-ish gesture on the
+    // hero. Wheel and a real touch swipe both count; a single listener with
+    // `{ once: true }` would fire on a wheel event's very first, tiny delta
+    // (a trackpad's inertial "settling" jiggle counts too) — so this filters
+    // for actual intent instead, then removes itself once it's fired.
+    const heroSection = document.getElementById("top");
+    let touchStartY = null;
+    function onHeroWheel(e) {
+      if (Math.abs(e.deltaY) < 12) return;
+      goToWork();
+    }
+    function onHeroTouchStart(e) { touchStartY = e.touches[0].clientY; }
+    function onHeroTouchMove(e) {
+      if (touchStartY === null) return;
+      if (Math.abs(e.touches[0].clientY - touchStartY) > 24) goToWork();
+    }
+    heroSection.addEventListener("wheel", onHeroWheel, { passive: true });
+    heroSection.addEventListener("touchstart", onHeroTouchStart, { passive: true });
+    heroSection.addEventListener("touchmove", onHeroTouchMove, { passive: true });
 
     window.addEventListener("hashchange", routeFromHash);
     routeFromHash();
+
+    // Hero ready: let the loading ring complete and hand over to the cursor.
+    heroImagesReady.then(() => pageLoader.finish(placeCursorAt));
     })();
   </script>
 </body>
