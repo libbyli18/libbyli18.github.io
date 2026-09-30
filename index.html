@@ -197,12 +197,9 @@
   .gallery-viewport::-webkit-scrollbar { display: none; }
   .gallery-viewport.dragging { cursor: grabbing; }
 
-  /* Justified rows (see layoutWorkGrid): every photo in a row shares one
-     height and keeps its own shape, and each row is scaled so both ends line
-     up. In columns every card shares a width instead, so a landscape photo
-     came out about half the size of a portrait one; here it gets its full
-     width. Cards are placed in JS, and the track is sized to hold them —
-     wider and taller than the screen, so it pans both ways. */
+  /* Rows of equal-size photos (see layoutWorkGrid): each photo gets the same
+     area whatever its shape. Cards are placed in JS, and the track is sized
+     to hold them — wider and taller than the screen, so it pans both ways. */
   .gallery-track { position: relative; }
   .gallery-track .photo-card {
     position: absolute;
@@ -979,54 +976,62 @@
       });
     })();
 
-    // ---------------- Grid layout: justified rows ----------------
-    // Photos run left to right in rows at about GRID_ROW_H tall; each row's
-    // height is then nudged so it exactly fills the canvas width. Pure
-    // arithmetic on the photos' shapes and the screen size, so it works
-    // while the grid is hidden. The canvas is shaped like the screen and big
-    // enough for everything, so there's as much to explore across as down.
-    const gridRowHeight = () => (innerWidth <= 860 ? 180 : 280);
+    // ---------------- Grid layout: equal-size rows ----------------
+    // Every photo gets the same area whatever its shape — a portrait and a
+    // landscape of the same proportions are the same size, just turned —
+    // about gridPhotoSize() squared. They run left to right in rows; a row
+    // is as tall as its tallest photo, with shorter ones centred in it, and
+    // each full row is scaled a touch so both ends line up with the canvas
+    // edges (rows break wherever keeps that scale nearest 1, so sizes stay
+    // within a few percent). Pure arithmetic on the photos' shapes and the
+    // screen size, so it works while the grid is hidden. The canvas is
+    // shaped like the screen and big enough for everything, so there's as
+    // much to explore across as down.
+    const gridPhotoSize = () => (innerWidth <= 860 ? 175 : 275);
     const gridGap = () => (innerWidth <= 860 ? 12 : 16);
     function layoutWorkGrid() {
       const cards = [...gridWork.querySelectorAll(".photo-card")];
-      const R = gridRowHeight(), gap = gridGap();
-      const aspects = cards.map((c) => {
+      const S = gridPhotoSize(), gap = gridGap();
+      const dims = cards.map((c) => {
         const p = galleries[+c.dataset.gallery].sets[+c.dataset.photo];
-        return p.w / p.h;
+        const r = Math.sqrt(p.w / p.h);
+        return { w: S * r, h: S / r };
       });
-      const total = aspects.reduce((sum, k) => sum + k * R + gap, 0);
-      const rows = Math.max(1, Math.round(Math.sqrt((total * innerHeight) / (innerWidth * (R + gap)))));
+      const total = dims.reduce((sum, d) => sum + d.w + gap, 0);
+      const typicalRow = S * 1.15; // rows run a little taller than S: the portraits set their height
+      const rows = Math.max(1, Math.round(Math.sqrt((total * innerHeight) / (innerWidth * (typicalRow + gap)))));
       const W = total / rows;
-      const sum = (row) => row.reduce((a, i) => a + aspects[i], 0);
-      const fitHeight = (row) => (W - gap * (row.length - 1)) / sum(row);
+      const width = (row) => row.reduce((a, i) => a + dims[i].w, 0);
+      const fit = (row) => (W - gap * (row.length - 1)) / width(row); // the scale that makes it exactly W wide
 
       let y = 0;
-      const place = (row, h) => {
-        let x = 0;
+      const place = (row, k, x = 0) => {
+        const rowH = Math.max(...row.map((i) => dims[i].h)) * k;
         row.forEach((i) => {
-          const w = aspects[i] * h;
-          Object.assign(cards[i].style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+          const w = dims[i].w * k, h = dims[i].h * k;
+          Object.assign(cards[i].style, { left: `${x}px`, top: `${y + (rowH - h) / 2}px`, width: `${w}px`, height: `${h}px` });
           x += w + gap;
         });
-        y += h + gap;
+        y += rowH + gap;
       };
       let row = [];
-      aspects.forEach((k, i) => {
+      dims.forEach((d, i) => {
         row.push(i);
-        if (sum(row) * R + gap * (row.length - 1) < W) return;
-        // Full: end the row here or just before this photo — whichever
-        // leaves its height nearer the target.
+        if (width(row) + gap * (row.length - 1) < W) return;
         const before = row.slice(0, -1);
-        if (before.length && Math.abs(fitHeight(before) - R) < Math.abs(fitHeight(row) - R)) {
-          place(before, fitHeight(before));
+        if (before.length && Math.abs(fit(before) - 1) < Math.abs(fit(row) - 1)) {
+          place(before, fit(before));
           row = [i];
         } else {
-          place(row, fitHeight(row));
+          place(row, fit(row));
           row = [];
         }
       });
-      // The last row keeps the target height unless it nearly fills the width.
-      if (row.length) place(row, Math.min(R, fitHeight(row)));
+      // A last, part-filled row keeps its natural size, centred.
+      if (row.length) {
+        const k = Math.min(1, fit(row));
+        place(row, k, (W - (width(row) * k + gap * (row.length - 1))) / 2);
+      }
       gridWork.style.width = `${W}px`;
       gridWork.style.height = `${Math.max(0, y - gap)}px`;
     }
