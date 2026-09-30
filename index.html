@@ -309,32 +309,56 @@
   .gallery-track .photo-card:focus-visible .card-count { opacity: 1; }
 
   /* ---------- Lightbox ---------- */
+  /* The viewer itself never fades — only its backdrop and controls do — so
+     the photo flying in from the grid is fully solid the whole way. */
   #lightbox {
     position: fixed;
     inset: 0;
-    z-index: 9997;
-    background: rgba(27,24,21,0.94);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
+    z-index: 9997;                /* under the grain and rules, like the grid photos */
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.4s var(--ease-spring);
+  }
+  #lightbox.open, #lightbox.closing { visibility: visible; }
+  #lightbox.open { pointer-events: auto; }
+  #lightbox .lb-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(27,24,21,0.94);
     backdrop-filter: blur(6px);
-  }
-  #lightbox.open { opacity: 1; pointer-events: auto; }
-  #lightbox img {
-    max-width: min(86vw, 1000px);
-    max-height: 78vh;
-    object-fit: contain;
-    box-shadow: 0 30px 80px -20px rgba(27,24,21,0.7);
     opacity: 0;
-    transform: scale(0.97);
-    transition: opacity 0.45s var(--ease-spring), transform 0.45s var(--ease-spring);
+    transition: opacity 0.45s var(--ease-spring);
   }
-  #lightbox.open img { opacity: 1; transform: scale(1); }
-  .lb-btn {
-    transition: transform 0.3s var(--ease-spring), opacity 0.3s ease, border-color 0.3s ease;
+  #lightbox.open .lb-backdrop { opacity: 1; }
+  #lb-close, #lb-caption {
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.45s var(--ease-spring), transform 0.3s var(--ease-spring), border-color 0.3s ease;
+  }
+  #lightbox.open #lb-close, #lightbox.open #lb-caption { opacity: 1; }
+  /* The gallery as one horizontal strip; the current photo sits in the
+     centre and the strip slides to bring the next one there. */
+  #lb-strip {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    will-change: transform;
+  }
+  .lb-photo {
+    position: absolute;
+    cursor: pointer;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
+    will-change: transform, opacity;
+  }
+  .lb-photo.is-current { cursor: default; }
+  .lb-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(0.94);
+    pointer-events: none;
+    -webkit-user-drag: none;
   }
   .lb-btn:hover { transform: scale(1.08); border-color: rgba(246,242,232,0.6); }
   .lb-btn:active { transform: scale(0.94); }
@@ -802,7 +826,7 @@
   <section id="top" class="relative h-[100dvh] flex flex-col items-center justify-center px-6 text-center overflow-hidden">
 
     <!-- Recent work, drifting in a shallow 3D field. Built in JS (below)
-         from the most recent galleries, so it stays in sync with the
+         from the same photos as the grid, so it stays in sync with the
          work grid with nothing to keep in parallel by hand. Purely ambient —
          the only interaction on this whole hero is the scroll gesture that
          carries these same photos into the grid (see runEnterWork) — so
@@ -843,7 +867,8 @@
   <!-- ================= LIGHTBOX ================= -->
   <div id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer">
     <button id="lb-close" class="lb-btn absolute top-6 right-6 w-10 h-10 rounded-full border border-cream/30 text-cream flex items-center justify-center font-mono text-sm" aria-label="Close">✕</button>
-    <img id="lb-img" src="" alt="" />
+    <div class="lb-backdrop"></div>
+    <div id="lb-strip"></div>
     <p id="lb-caption" class="absolute bottom-8 left-1/2 -translate-x-1/2 font-mono text-[11px] tracking-[0.14em] uppercase text-cream/80"></p>
   </div>
 
@@ -943,9 +968,15 @@
     });
 
     // ---------------- Render grid ----------------
-    // Every gallery on one endless canvas. Each card carries its gallery's
-    // index, which is how the hero's floating cards find their own slot.
+    // Every photo on one endless canvas, each its own card — galleries only
+    // come together in the viewer (see openViewer). A card carries its
+    // gallery and its place in that gallery, which is how the viewer knows
+    // what to bring in with it and how the hero's cards find their slot.
     const gridWork = document.getElementById("grid-work");
+    const gridCardFor = (gi, pi) => gridWork.querySelector(`.photo-card[data-gallery="${gi}"][data-photo="${pi}"]`);
+    const photoAlt = (gallery, pi) => (gallery.sets.length > 1
+      ? `${gallery.t}, photo ${pi + 1} of ${gallery.sets.length}`
+      : gallery.t);
 
     (function buildWorkGrid() {
       // The flex-wrap column in .gallery-track places every card
@@ -956,24 +987,24 @@
       // aspect-ratio is what lets it keep its real width at the shared
       // .photo-card height, rather than being cropped into a uniform cell.
       const rng = makeRng(seedFrom("work-grid") ^ LAYOUT_SEED);
-      const order = shuffled([...galleries.keys()], rng);
+      const photos = galleries.flatMap((g, gi) => g.sets.map((photo, pi) => ({ g, gi, photo, pi })));
 
-      order.forEach((idx, i) => {
-        const item = galleries[idx];
+      shuffled(photos, rng).forEach(({ g, gi, photo, pi }, i) => {
         const card = document.createElement("div");
         card.className = "photo-card reveal";
         card.tabIndex = 0;
-        card.dataset.index = idx;
+        card.dataset.gallery = gi;
+        card.dataset.photo = pi;
         card.style.transitionDelay = `${Math.min(i * 12, 400)}ms`;
         card.innerHTML = `
-          <div class="photo-frame" style="aspect-ratio:${item.w}/${item.h}"><img /></div>
+          <div class="photo-frame" style="aspect-ratio:${photo.w}/${photo.h}"><img /></div>
           <span class="card-count font-mono"></span>
         `;
         // Names can come from the upload page, so they go in as text, never HTML.
         const img = card.querySelector("img");
-        img.src = item.src;
-        img.alt = item.t;
-        card.querySelector(".card-count").textContent = item.t;
+        img.src = photo.src;
+        img.alt = photoAlt(g, pi);
+        card.querySelector(".card-count").textContent = g.t;
         gridWork.appendChild(card);
       });
     })();
@@ -1136,21 +1167,23 @@
     // from however many there are (layoutFloat3d, below), so any count reads
     // as evenly spread rather than bunched into a few hand-placed spots.
     const MOBILE_HERO = window.matchMedia("(max-width: 640px)").matches;
-    const FLOAT3D_MAX = MOBILE_HERO ? 9 : 15; // the most recent galleries, at most this many
+    // Every photo, individually — capped (most recent first) only so a big
+    // library can't crowd the hero past the point cards stay recognisable.
+    const FLOAT3D_MAX = MOBILE_HERO ? 14 : 30;
     const float3dLayer = document.getElementById("hero-float3d");
     const heroEl = document.getElementById("top");
     const float3dCards = [];
 
     (function buildFloat3d() {
       const rng = makeRng(seedFrom("hero-float3d") ^ LAYOUT_SEED);
-      const first = Math.max(0, galleries.length - FLOAT3D_MAX);
-      const entries = galleries.slice(first).map((item, i) => ({ item, index: first + i }));
-      const ordered = shuffled(entries, rng);
+      const photos = galleries.flatMap((g, gi) => g.sets.map((item, pi) => ({ item, gi, pi })));
+      const ordered = shuffled(photos.slice(-FLOAT3D_MAX), rng);
 
-      ordered.forEach(({ item, index }) => {
+      ordered.forEach(({ item, gi, pi }) => {
         const el = document.createElement("div");
         el.className = "float3d-card";
-        el.dataset.index = index;
+        el.dataset.gallery = gi;
+        el.dataset.photo = pi;
         el._aspect = item.w / item.h;
         el._size = [0.82, 1, 1.18][Math.floor(rng() * 3)]; // a little size variety
         el._rot = ((rng() - 0.5) * 6).toFixed(2); // fixed per-card tilt, degrees
@@ -1421,88 +1454,250 @@
     menuClose.addEventListener("click", closeMenu);
     mobileNav.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeMenu));
 
-    // ---------------- Lightbox ----------------
-    // Each card is its own small gallery — currentCard picks the gallery,
-    // currentSetIndex picks a photo
-    // within just that card's set. There's no more stepping past a card's own
-    // edges into the next card's set; scrolling one runs out, same as it would
-    // scrolling a real filmstrip that has a start and an end.
+    // ---------------- Gallery viewer ----------------
+    // Clicking a photo opens its whole gallery: the photo flies from its
+    // grid slot to the centre, then the rest of its gallery comes out from
+    // behind it into a strip either side, in the gallery's own order. Scroll,
+    // swipe or the arrow keys slide the strip; closing folds the others back
+    // behind the current photo, which flies home to its own grid slot.
     const lightbox = document.getElementById("lightbox");
-    const lbImg = document.getElementById("lb-img");
+    const lbStrip = document.getElementById("lb-strip");
     const lbCaption = document.getElementById("lb-caption");
+    const lbClose = document.getElementById("lb-close");
     const cursorRing = document.getElementById("cursor-ring");
-    let currentCard = null, currentSetIndex = 0;
 
-    function showImage() {
-      const card = galleries[currentCard];
-      const item = card.sets[currentSetIndex];
-      lbImg.src = item.src;
-      lbImg.alt = card.sets.length > 1
-        ? `${card.t}, photo ${currentSetIndex + 1} of ${card.sets.length}`
-        : card.t;
-      lbCaption.textContent = card.sets.length > 1
-        ? `${card.t} — ${currentSetIndex + 1} / ${card.sets.length}`
-        : card.t;
+    const VIEW_FLY_MS = 700;        // the clicked photo, grid slot -> centre
+    const VIEW_SPREAD_MS = 650;     // the rest, out from behind it
+    const VIEW_SPREAD_AFTER = 0.3;  // ...starting once the photo is this far in
+    const VIEW_STAGGER_MS = 45;     // per step away from the clicked photo
+    const VIEW_STEP_MS = 550;       // sliding the strip one photo along
+    const VIEW_FOLD_MS = 380;       // closing: the rest back behind the current one
+    const VIEW_HOME_MS = 650;       // closing: the current one back to its slot
+    const VIEW_SETTLE_MS = 200;     // ...crossfading onto the grid photo as it lands
+    const VIEW_DIM = "0.32";        // opacity of the photos either side
+    let viewer = null;
+
+    // Each photo fitted to the stage, and the strip's centre-to-centre layout.
+    function layoutStrip(gallery) {
+      const maxW = Math.min(innerWidth * 0.86, 1000);
+      const maxH = innerHeight * 0.78;
+      const gap = Math.max(24, innerWidth * 0.04);
+      const sizes = gallery.sets.map((p) => {
+        const k = Math.min(maxW / p.w, maxH / p.h);
+        return { w: p.w * k, h: p.h * k };
+      });
+      const xs = [];
+      sizes.forEach((sz, i) => { xs.push(i ? xs[i - 1] + sizes[i - 1].w / 2 + gap + sz.w / 2 : 0); });
+      return { sizes, xs };
     }
-    function openLightbox(cardIndex) {
-      currentCard = cardIndex; currentSetIndex = 0;
-      showImage();
+    function placeStripPhotos(v) {
+      v.els.forEach((el, i) => {
+        const { w, h } = v.sizes[i];
+        Object.assign(el.style, { left: `${v.xs[i] - w / 2}px`, top: `${-h / 2}px`, width: `${w}px`, height: `${h}px` });
+      });
+    }
+    const stripTo = (v, i) => { lbStrip.style.transform = `translateX(${-v.xs[i]}px)`; };
+    function showCurrent(v) {
+      const g = galleries[v.gi];
+      lbCaption.textContent = g.sets.length > 1 ? `${g.t} — ${v.current + 1} / ${g.sets.length}` : g.t;
+      v.els.forEach((el, i) => el.classList.toggle("is-current", i === v.current));
+    }
+
+    function openViewer(gi, pi, card) {
+      if (viewer) return;
+      const g = galleries[gi];
+      const v = { gi, current: pi, opener: card, busy: true, ...layoutStrip(g) };
+      lbStrip.innerHTML = "";
+      v.els = g.sets.map((photo, i) => {
+        const el = document.createElement("div");
+        el.className = "lb-photo";
+        el.innerHTML = "<img />";
+        const img = el.firstChild;
+        img.src = photo.src;
+        img.alt = photoAlt(g, i);
+        // The clicked photo in front; the rest stacked behind it by distance.
+        el.style.zIndex = String(1000 - Math.abs(i - pi));
+        el.addEventListener("click", () => { if (viewer === v && i !== v.current) stepViewer(i - v.current); });
+        lbStrip.appendChild(el);
+        return el;
+      });
+      viewer = v;
+      placeStripPhotos(v);
+      lbStrip.style.transition = "none";
+      stripTo(v, pi);
+      showCurrent(v);
+
+      const from = card.querySelector(".photo-frame").getBoundingClientRect();
       lightbox.classList.add("open");
       cursorRing.classList.add("lightbox-mode");
-    }
-    function closeLightbox() {
-      lightbox.classList.remove("open");
-      cursorRing.classList.remove("lightbox-mode");
-    }
-    function step(delta) {
-      const card = galleries[currentCard];
-      const next = clamp(currentSetIndex + delta, 0, card.sets.length - 1);
-      if (next === currentSetIndex) return;
-      currentSetIndex = next;
-      showImage();
+      lbClose.focus({ preventScroll: true });
+
+      if (REDUCE_MOTION) {
+        v.els.forEach((el, i) => { el.style.opacity = i === pi ? "1" : VIEW_DIM; });
+        v.busy = false;
+        return;
+      }
+
+      // FLIP: laid out at its stage size and centred, the clicked photo is
+      // transformed back onto its grid slot — then released.
+      const clicked = v.els[pi];
+      const size = v.sizes[pi];
+      const cx = innerWidth / 2, cy = innerHeight / 2;
+      clicked.style.transform =
+        `translate(${from.left + from.width / 2 - cx}px, ${from.top + from.height / 2 - cy}px) ` +
+        `scale(${from.width / size.w}, ${from.height / size.h})`;
+      card.style.visibility = "hidden"; // the flying photo stands in for it
+      // The rest start exactly behind where the clicked photo will land,
+      // no bigger than it (so nothing peeks out), and invisible.
+      v.els.forEach((el, i) => {
+        if (i === pi) return;
+        const k = Math.min(size.w / v.sizes[i].w, size.h / v.sizes[i].h) * 0.94;
+        el.style.transform = `translateX(${v.xs[pi] - v.xs[i]}px) scale(${k})`;
+        el.style.opacity = "0";
+      });
+      void lbStrip.offsetWidth; // commit the starting poses
+
+      let last = VIEW_FLY_MS;
+      requestAnimationFrame(() => {
+        clicked.style.transition = `transform ${VIEW_FLY_MS}ms var(--ease-spring)`;
+        clicked.style.transform = "none";
+        v.els.forEach((el, i) => {
+          if (i === pi) return;
+          const delay = VIEW_FLY_MS * VIEW_SPREAD_AFTER + (Math.abs(i - pi) - 1) * VIEW_STAGGER_MS;
+          last = Math.max(last, delay + VIEW_SPREAD_MS);
+          el.style.transition =
+            `transform ${VIEW_SPREAD_MS}ms var(--ease-spring) ${delay}ms, ` +
+            `opacity ${VIEW_SPREAD_MS * 0.5}ms ease ${delay}ms`;
+          el.style.transform = "none";
+          el.style.opacity = VIEW_DIM;
+        });
+        setTimeout(() => {
+          if (viewer !== v) return;
+          v.els.forEach((el) => { el.style.transition = ""; el.style.transform = ""; });
+          v.busy = false;
+        }, last + 40);
+      });
     }
 
-    document.querySelectorAll(".photo-card").forEach((card) => {
-      const open = () => openLightbox(parseInt(card.dataset.index, 10));
+    function stepViewer(delta) {
+      const v = viewer;
+      if (!v || v.busy) return;
+      const next = clamp(v.current + delta, 0, v.els.length - 1);
+      if (next === v.current) return;
+      const fade = `opacity ${VIEW_STEP_MS}ms var(--ease-spring)`;
+      v.els[v.current].style.transition = fade;
+      v.els[next].style.transition = fade;
+      v.els[v.current].style.opacity = VIEW_DIM;
+      v.els[next].style.opacity = "1";
+      v.current = next;
+      lbStrip.style.transition = `transform ${VIEW_STEP_MS}ms var(--ease-spring)`;
+      stripTo(v, next);
+      showCurrent(v);
+    }
+
+    // instant: used when a route change closes it, with nothing to fly back to.
+    function closeLightbox(instant = false) {
+      const v = viewer;
+      if (!v) return;
+      viewer = null;
+      lightbox.classList.remove("open");
+      cursorRing.classList.remove("lightbox-mode");
+      v.opener.style.visibility = ""; // back in place, under the backdrop
+
+      const home = gridCardFor(v.gi, v.current);
+      const finish = () => {
+        lbStrip.innerHTML = "";
+        lightbox.classList.remove("closing");
+        if (home) home.style.visibility = "";
+      };
+      if (instant || REDUCE_MOTION || !home) { finish(); if (home && !instant) home.focus({ preventScroll: true }); return; }
+
+      lightbox.classList.add("closing");
+      // Settle the strip where it's headed, in case this interrupts a slide.
+      lbStrip.style.transition = "none";
+      stripTo(v, v.current);
+      const cur = v.els[v.current];
+      cur.style.zIndex = "2000";
+      cur.style.opacity = "1";
+      v.els.forEach((el, i) => {
+        if (i === v.current) return;
+        const k = Math.min(v.sizes[v.current].w / v.sizes[i].w, v.sizes[v.current].h / v.sizes[i].h) * 0.94;
+        el.style.transition = `transform ${VIEW_FOLD_MS}ms var(--ease-spring), opacity ${VIEW_FOLD_MS * 0.7}ms ease`;
+        el.style.transform = `translateX(${v.xs[v.current] - v.xs[i]}px) scale(${k})`;
+        el.style.opacity = "0";
+      });
+
+      // Home: FLIP from where it sits now onto its grid slot.
+      home.style.visibility = "hidden";
+      const r = cur.getBoundingClientRect();
+      const to = home.querySelector(".photo-frame").getBoundingClientRect();
+      const size = v.sizes[v.current];
+      const delay = VIEW_FOLD_MS * 0.4;
+      cur.style.transition =
+        `transform ${VIEW_HOME_MS}ms var(--ease-spring) ${delay}ms, ` +
+        `opacity ${VIEW_SETTLE_MS}ms ease ${delay + VIEW_HOME_MS - VIEW_SETTLE_MS}ms`;
+      cur.style.transform =
+        `translate(${to.left + to.width / 2 - (r.left + r.width / 2)}px, ${to.top + to.height / 2 - (r.top + r.height / 2)}px) ` +
+        `scale(${to.width / size.w}, ${to.height / size.h})`;
+      // In its last moments it's within a fraction of a pixel of the slot:
+      // the grid photo comes back underneath and the flying one fades off it.
+      cur.style.opacity = "0";
+      setTimeout(() => {
+        home.style.visibility = "";
+        home.focus({ preventScroll: true }); // the photo you were last on, not the one you opened
+      }, delay + VIEW_HOME_MS - VIEW_SETTLE_MS);
+      setTimeout(finish, delay + VIEW_HOME_MS + 40);
+    }
+
+    addEventListener("resize", () => {
+      const v = viewer;
+      if (!v || v.busy) return;
+      Object.assign(v, layoutStrip(galleries[v.gi]));
+      placeStripPhotos(v);
+      lbStrip.style.transition = "none";
+      stripTo(v, v.current);
+    });
+
+    document.querySelectorAll("#grid-work .photo-card").forEach((card) => {
+      const open = () => openViewer(+card.dataset.gallery, +card.dataset.photo, card);
       card.addEventListener("click", open);
       card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     });
 
-    document.getElementById("lb-close").addEventListener("click", closeLightbox);
-    lightbox.addEventListener("click", (e) => { if (e.target === lightbox) closeLightbox(); });
+    lbClose.addEventListener("click", () => closeLightbox());
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox || e.target.classList.contains("lb-backdrop")) closeLightbox();
+    });
     document.addEventListener("keydown", (e) => {
-      if (!lightbox.classList.contains("open")) return;
+      if (!viewer) return;
       if (e.key === "Escape") closeLightbox();
-      // Arrow keys stand in for the removed prev/next buttons — scroll is the
-      // primary way in, but keyboard-only visitors still need a way through.
-      if (e.key === "ArrowLeft") step(-1);
-      if (e.key === "ArrowRight") step(1);
+      // Arrow keys stand in for the scroll gesture for keyboard-only visitors.
+      if (e.key === "ArrowLeft") stepViewer(-1);
+      if (e.key === "ArrowRight") stepViewer(1);
     });
 
-    // Scroll (wheel or trackpad) is the only way through a set once inside
-    // it — collapsed to discrete steps rather than tracking deltaY 1:1, so
-    // one gesture reliably moves by one photo instead of racing through the
-    // set on a single fast trackpad swipe.
+    // Scroll (wheel or trackpad, either direction) moves one photo per
+    // gesture rather than tracking the delta 1:1, so one fast trackpad swipe
+    // doesn't race through the whole gallery.
     const WHEEL_COOLDOWN_MS = 420;
     const WHEEL_THRESHOLD = 4; // px — filters stray near-zero deltas, not real intent
     let lastWheelStep = 0;
     lightbox.addEventListener(
       "wheel",
       (e) => {
-        if (!lightbox.classList.contains("open")) return;
+        if (!viewer) return;
         e.preventDefault();
-        if (Math.abs(e.deltaY) < WHEEL_THRESHOLD) return;
+        const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        if (Math.abs(d) < WHEEL_THRESHOLD) return;
         const now = performance.now();
         if (now - lastWheelStep < WHEEL_COOLDOWN_MS) return;
         lastWheelStep = now;
-        step(e.deltaY > 0 ? 1 : -1);
+        stepViewer(d > 0 ? 1 : -1);
       },
       { passive: false }
     );
 
-    // Touch has no wheel to scroll and the arrow buttons are gone, so a
-    // horizontal swipe is the only way through a set on a phone — same
-    // one-step-per-gesture feel as the wheel above.
+    // On touch, a horizontal swipe — same one-photo-per-gesture feel.
     const SWIPE_THRESHOLD = 40; // px
     let touchStartX = null;
     lightbox.addEventListener("touchstart", (e) => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
@@ -1511,7 +1706,7 @@
       const dx = e.changedTouches[0].clientX - touchStartX;
       touchStartX = null;
       if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-      step(dx < 0 ? 1 : -1); // swipe left -> next, same direction as the gallery strip itself
+      stepViewer(dx < 0 ? 1 : -1); // swipe left -> next, the way the strip runs
     }, { passive: true });
 
     // ---------------- View routing ----------------
@@ -1768,7 +1963,7 @@
       return float3dCards
         .map((card) => ({
           card,
-          dest: workGridTrack.querySelector(`.photo-card[data-index="${card.dataset.index}"]`),
+          dest: gridCardFor(card.dataset.gallery, card.dataset.photo),
         }))
         .filter((p) => p.dest);
     }
@@ -1776,7 +1971,7 @@
 
     function runEnterWork() {
       isTransitioning = true;
-      closeLightbox();
+      closeLightbox(true);
 
       if (REDUCE_MOTION) {
         settleHero();
@@ -1946,7 +2141,7 @@
     const GRID_FADE_MS = 450;
     function runLeaveWork() {
       isTransitioning = true;
-      closeLightbox();
+      closeLightbox(true);
       // Hidden from the start (instantly — the hero isn't on screen yet);
       // they're the last thing to come back.
       settleHero();
