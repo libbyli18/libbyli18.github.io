@@ -503,7 +503,8 @@
   .hero-name-libby {
     right: 5vw;
     top: 36%;
-    font-weight: 500;
+    font-style: italic;
+    font-weight: 400;
     text-align: right;
   }
   .hero-name-li {
@@ -1190,9 +1191,10 @@
     // from however many there are (layoutFloat3d, below), so any count reads
     // as evenly spread rather than bunched into a few hand-placed spots.
     const MOBILE_HERO = window.matchMedia("(max-width: 640px)").matches;
-    // Every photo, individually — capped (most recent first) only so a big
-    // library can't crowd the hero past the point cards stay recognisable.
-    const FLOAT3D_MAX = MOBILE_HERO ? 14 : 30;
+    // A fixed handful, whatever the size of the library: a fresh random pick
+    // of individual photos each visit (from across every gallery), so the
+    // hero stays airy and each card is big enough to read.
+    const FLOAT3D_COUNT = 13;
     const float3dLayer = document.getElementById("hero-float3d");
     const heroEl = document.getElementById("top");
     const float3dCards = [];
@@ -1200,7 +1202,7 @@
     (function buildFloat3d() {
       const rng = makeRng(seedFrom("hero-float3d") ^ LAYOUT_SEED);
       const photos = galleries.flatMap((g, gi) => g.sets.map((item, pi) => ({ item, gi, pi })));
-      const ordered = shuffled(photos.slice(-FLOAT3D_MAX), rng);
+      const ordered = shuffled(photos, rng).slice(0, FLOAT3D_COUNT);
 
       ordered.forEach(({ item, gi, pi }) => {
         const el = document.createElement("div");
@@ -1252,24 +1254,22 @@
     // float3dDrift keyframe animation on .float3d-inner (see the CSS).
     float3dCards.forEach((el) => { el.style.transform = `rotate(${el._rot}deg)`; });
 
-    // Card sizes follow the count: together the cards cover about the same
-    // share of the page whether there are 2 or 15, each card getting the
-    // same area whatever its shape. Then each is placed as far as it can get
-    // from the other cards, the page edges and the hero text (greedy, then a
-    // few passes re-placing each card against all the others, which evens
-    // out the gaps). Edges count double, so a card keeps about half the
-    // card-to-card spacing from the edge — as if the pattern carried on.
-    // Past its minimum clearance the text counts for much less, so spreading
-    // the cards apart wins over keeping them far from the words.
-    const FLOAT_COVER = MOBILE_HERO ? 0.14 : 0.12; // share of free page the cards cover
-    const FLOAT_TEXT_GAP = 28;  // minimum clear space around the hero text, px
-    const FLOAT_EDGE_GAP = 16;  // minimum clear space from the page edges, px
-    const FLOAT_DRIFT = 28;     // room for the drift animation's own travel, px
+    // Every card gets the same area whatever its shape (a little variety on
+    // top), sized from the screen. Each is placed as far as it can get from
+    // the other cards and the hero text (greedy, then a few passes
+    // re-placing each card against all the others, which evens out the
+    // gaps). The field runs past the screen edges: a card may hang up to
+    // FLOAT_BLEED of itself off the page, and the edges pull cards outward,
+    // so the photos spread right to the edges — some partly off them —
+    // instead of leaving empty bands. Past its minimum clearance the text
+    // counts for less, so spreading the cards apart wins over keeping them
+    // far from the words.
+    const FLOAT_SIDE = MOBILE_HERO ? 0.21 : 0.16; // card size, as a share of the screen's shorter side
+    const FLOAT_TEXT_GAP = 28;   // minimum clear space around the hero text, px
+    const FLOAT_DRIFT = 28;      // room for the drift animation's own travel, px
     const FLOAT_TEXT_WEIGHT = MOBILE_HERO ? 2 : 4;
-    // Largest a card gets, as a share of the shorter side: past this, with few
-    // cards, they no longer fit the bands between the words and all bunch
-    // into the one space that is big enough.
-    const FLOAT_MAX_SIDE = 0.2;
+    const FLOAT_BLEED = 0.4;     // most of a card that may sit off the page
+    const FLOAT_EDGE_PULL = 6;   // how strongly the edges draw cards outward
     const FLOAT_PASSES = 6;
 
     // Hero text boxes, in hero coordinates. Layout offsets, not bounding
@@ -1278,9 +1278,9 @@
       const heroRect = heroEl.getBoundingClientRect();
       const boxes = [];
       const add = (l, t, w, h) => { if (w && h) boxes.push({ l, t, r: l + w, b: t + h }); };
-      [".hero-name-libby", ".hero-name-li", ".hero-label", ".scroll-enter"].forEach((sel) => {
-        const el = heroEl.querySelector(sel);
-        if (!el) return;
+      // The prompt's own box spans the full width (it centres its content),
+      // so measure what's actually drawn in it — the line and the words.
+      [".hero-name-libby", ".hero-name-li", ".hero-label", ".scroll-enter > *"].flatMap((sel) => [...heroEl.querySelectorAll(sel)]).forEach((el) => {
         let x = 0, y = 0, n = el;
         while (n && n !== heroEl) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
         if (n === heroEl) add(x, y, el.offsetWidth, el.offsetHeight);
@@ -1304,19 +1304,15 @@
       if (!W || !H || !float3dCards.length) return;
       const rng = makeRng(seedFrom("hero-layout") ^ LAYOUT_SEED);
       const text = heroTextBoxes();
-      const textArea = text.reduce((a, t) => a + (t.r - t.l) * (t.b - t.t), 0);
-      const free = Math.max(W * H - textArea, W * H * 0.4);
       const step = Math.max(8, Math.min(W, H) / 50);
-      const edge = FLOAT_EDGE_GAP + FLOAT_DRIFT;
       const clearOfText = FLOAT_TEXT_GAP + FLOAT_DRIFT;
 
       // Shrinks everything a little and retries if the cards can't all fit
       // clear of the text (a very small window, or a lot of photos).
       for (let shrink = 1, attempt = 0; attempt < 6; attempt++, shrink *= 0.85) {
-        const side = Math.sqrt((free * FLOAT_COVER) / float3dCards.length) * shrink;
-        const maxSide = Math.min(W, H) * FLOAT_MAX_SIDE;
+        const side = Math.min(W, H) * FLOAT_SIDE * shrink;
         const cards = float3dCards.map((el) => {
-          const s = clamp(side * el._size, 28, maxSide);
+          const s = Math.max(28, side * el._size);
           return { el, w: s * Math.sqrt(el._aspect), h: s / Math.sqrt(el._aspect), cx: 0, cy: 0, placed: false };
         });
         cards.sort((a, b) => b.w * b.h - a.w * a.h); // biggest first
@@ -1325,10 +1321,12 @@
         function place(c) {
           let best = null, bestScore = -Infinity;
           const hw = c.w / 2, hh = c.h / 2;
-          for (let cy = edge + hh; cy <= H - edge - hh; cy += step) {
-            for (let cx = edge + hw; cx <= W - edge - hw; cx += step) {
+          const bx = c.w * FLOAT_BLEED, by = c.h * FLOAT_BLEED; // how far it may hang off
+          for (let cy = hh - by; cy <= H + by - hh; cy += step) {
+            for (let cx = hw - bx; cx <= W + bx - hw; cx += step) {
               const box = { l: cx - hw, t: cy - hh, r: cx + hw, b: cy + hh };
-              let score = 2 * Math.min(box.l, W - box.r, box.t, H - box.b);
+              // Room left before hitting the furthest it may hang off.
+              let score = FLOAT_EDGE_PULL * Math.min(box.l + bx, W + bx - box.r, box.t + by, H + by - box.b);
               let blocked = false;
               for (const t of text) {
                 const g = boxGap(box, t);
