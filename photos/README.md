@@ -59,3 +59,14 @@ Rename the file or folder to change the title.
 Safe to re-run `node build-photos.mjs` any time — add a few more photos,
 run it again, refresh. It only reads your folders and rewrites
 `photos-data.js`; it never touches or deletes your original images.
+
+## Pins on the globe
+
+Each gallery's pin comes from `places.js` in the project root. Add an
+entry keyed by the gallery's title (the tidied-up folder name, e.g.
+"China Spring 2026"), with a display name, the
+month you went as `date: "YYYY-MM"` (or just `"YYYY"`), and `lat`/`lng`.
+The photo list is sorted newest first and grouped under month-and-year
+headings from those dates. A gallery without an entry still shows in the
+photos below the globe, at the end of the list; it just has no pin. Places you've been without photos go in
+`VISITED` at the bottom of that file and show as small, quieter dots.
