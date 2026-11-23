@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>illustrations · Libby Li</title>
+<meta name="description" content="Illustrations by Libby Li, coming soon." />
+<meta name="theme-color" content="#8FB0BB" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&display=swap"
+  rel="stylesheet"
+/>
+<link rel="stylesheet" href="hill.css" />
+</head>
+<body data-quiet-sky>
+  <header class="top">
+    <a class="wordmark" href="./">libbyli.jpg</a>
+  </header>
+
+  <main class="scene" id="scene">
+    <div class="note">
+      <h1>illustrations</h1>
+      <p>Nothing here yet. Check back soon.</p>
+    </div>
+        <div class="sky" aria-hidden="true"></div>
+    <div class="layer sky-layer" aria-hidden="true"><div class="px" data-depth="0.2"><canvas id="sky" class="sky-canvas"></canvas></div></div>
+    <div class="layer far-layer" aria-hidden="true"><div class="px" data-depth="0.5"><canvas id="far"></canvas></div></div>
+    <div class="layer near-layer">
+      <div class="px" data-depth="1" id="near-wrap">
+        <canvas id="near" aria-hidden="true"></canvas>
+        <nav class="words" id="words" aria-label="Main">
+          <a class="word" href="./"><span class="word-lift"><span class="word-tilt"><span class="word-ink">home<i class="bl"></i></span></span></span></a>
+        </nav>
+        <div class="shadows" id="shadows" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="grain" aria-hidden="true"></div>
+  </main>
+
+  <script src="hill.js"></script>
+  <script src="firefly.js"></script>
+</body>
+</html>

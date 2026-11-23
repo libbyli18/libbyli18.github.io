@@ -1,0 +1,230 @@
+/* The hillside: the front page and the placeholder pages share it.
+   Everything in the landscape is drawn by hill.js; this file places the
+   layers, sets the type and the word motion. */
+
+:root {
+  --fog: #E5E9E3;
+  --mist: #D3DEE0;
+  --haze: #DFD8E0;
+  --lichen: #B9C4AE;
+  --moss: #7D8B6C;
+  --glacier: #6F9894;
+  --glacier-deep: #4C716D;
+  --slate: #33403F;
+  --slate-soft: #4F5C5B;
+  --ivory: #F7F5EE;
+
+  --gutter: clamp(1rem, 4vw, 3rem);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.22, 1.2, 0.36, 1);
+  --word-size: clamp(1rem, 0.82rem + 0.42vw, 1.3rem);
+}
+
+@view-transition { navigation: auto; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; overscroll-behavior: none; }
+body {
+  margin: 0;
+  overflow: hidden;
+  color: var(--slate);
+  background: var(--mist);
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: rgba(111, 152, 148, 0.32); color: var(--slate); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Scene layers, back to front ---------- */
+.scene { position: fixed; inset: 0; overflow: hidden; }
+
+/* Behind the painted sky, and the whole scene if WebGL is unavailable. */
+.sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #8DB1C8 0%, #BCCED5 40%, #E7E5DC 62%, #9DAA7C 66%, #56703F 100%);
+}
+
+.layer { position: absolute; inset: 0; pointer-events: none; }
+.near-layer { pointer-events: none; }
+/* Each layer is a little larger than the screen so it can shift with the
+   pointer without showing an edge. */
+.px { position: absolute; inset: -28px; will-change: transform; }
+.px > canvas { position: absolute; left: 0; top: 0; display: block; }
+/* The sky is painted a little wider than the screen and drifts slowly
+   across, carrying its clouds. */
+.sky-canvas {
+  will-change: transform;
+  animation: drift 160s ease-in-out infinite alternate;
+}
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(var(--drift-span, -100px), 0, 0); }
+}
+
+/* Film grain over everything. */
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.25 0 0 0 0 0.25 0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Entrance: the land settles, back to front ---------- */
+.js .layer { opacity: 0; transform: translate3d(0, var(--rise, 0px), 0); }
+.is-ready .layer {
+  opacity: 1;
+  transform: none;
+  transition: opacity 1.1s var(--ease-out) var(--delay, 0s), transform 1.7s var(--ease-out) var(--delay, 0s);
+}
+.sky-layer { --rise: 8px; --delay: 0s; }
+.far-layer { --rise: 18px; --delay: 0.08s; }
+.near-layer { --rise: 40px; --delay: 0.18s; }
+
+/* ---------- Leaving for the globe: the camera rises ---------- */
+/* The land falls away, nearest layers fastest, accelerating like a lift
+   off; the mist of the globe page closes in over the last half. */
+.veil {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(120% 70% at 85% 0%, rgba(196, 214, 218, 0.95), transparent 60%),
+    linear-gradient(180deg, var(--mist) 0%, var(--fog) 45%, var(--haze) 100%);
+}
+html.is-rising .layer { transition: transform 0.85s cubic-bezier(0.32, 0, 0.67, 0.5); }
+/* The sky is far off and barely shifts; kept within the layer's bleed. */
+html.is-rising .sky-layer { transform: translate3d(0, 2.5vh, 0); }
+html.is-rising .far-layer { transform: translate3d(0, 34vh, 0); }
+html.is-rising .near-layer { transform: translate3d(0, 62vh, 0); }
+html.is-rising .veil { opacity: 1; transition: opacity 0.4s cubic-bezier(0.4, 0, 0.6, 1) 0.42s; }
+html.is-rising .top { opacity: 0; transition: opacity 0.3s linear; }
+
+/* ---------- The words on the hill ---------- */
+.words { position: absolute; inset: 0; pointer-events: none; }
+.word {
+  position: absolute;
+  display: block;
+  pointer-events: auto;
+  color: var(--slate);
+  text-decoration: none;
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 400;
+  font-size: var(--word-size);
+  line-height: 1;
+  letter-spacing: -0.005em;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.word-lift { position: absolute; display: block; will-change: transform; }
+.word-tilt { display: block; }
+.word-ink {
+  display: block;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  transition: transform 0.4s var(--ease-spring), opacity 0.2s;
+}
+.word:active .word-ink { transform: scale(0.96); transition-duration: 0.12s; }
+.word:focus-visible .word-ink { text-decoration-color: var(--glacier-deep); }
+.bl { display: inline-block; width: 0; height: 0; }
+
+/* A soft contact shadow on the grass under each word. */
+.shadows { position: absolute; inset: 0; pointer-events: none; }
+.word-shadow {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(38, 52, 30, 0.5), rgba(38, 52, 30, 0.18) 55%, transparent);
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}
+
+/* Without the script the words still show, in a row near the horizon. */
+.words:not(.is-placed) {
+  display: flex;
+  justify-content: center;
+  gap: 2em;
+  padding-top: 58vh;
+}
+.words:not(.is-placed) .word { position: static; pointer-events: auto; }
+
+/* ---------- Top-left wordmark ---------- */
+.top {
+  position: fixed;
+  top: var(--gutter);
+  left: var(--gutter);
+  z-index: 10;
+}
+.wordmark {
+  display: inline-block;
+  padding: 0.35rem 0.6rem;
+  margin-left: -0.6rem;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--slate);
+  text-decoration: none;
+  border-radius: 6px;
+  transition: transform 0.3s var(--ease-spring), opacity 0.2s;
+}
+.wordmark:hover { opacity: 0.72; }
+.wordmark:active { transform: scale(0.97); }
+.wordmark:focus-visible { outline: 2px solid var(--glacier-deep); outline-offset: 2px; }
+
+/* ---------- Placeholder pages: a note in the sky ---------- */
+.note {
+  position: fixed;
+  top: 24svh;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 0 var(--gutter);
+  text-align: center;
+}
+.note h1 {
+  margin: 0;
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(2.6rem, 1.4rem + 5vw, 5.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--slate);
+}
+.note p {
+  margin: 0.9rem 0 0;
+  font-size: 1.0625rem;
+  color: var(--slate-soft);
+}
+
+/* ---------- Firefly cursor (drawn by firefly.js) ---------- */
+.firefly {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+html.has-firefly, html.has-firefly * { cursor: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-canvas { animation: none; }
+  .js .layer { transform: none; }
+  .is-ready .layer { transition: opacity 0.5s linear; }
+  .word-lift { transition: transform 0.22s var(--ease-out); }
+  /* No travel: the mist simply fades in. */
+  html.is-rising .layer { transform: none; transition: none; }
+  html.is-rising .veil { transition: opacity 0.3s linear; }
+}

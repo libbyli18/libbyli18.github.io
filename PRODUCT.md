@@ -14,7 +14,7 @@ web
 
 ## Product Purpose
 
-libbyli.me is Libby Li's personal travel photography portfolio. A 3D globe marks the places she has photographed. Clicking a pin opens that place's photos directly: the pin's photo grows into the full-size viewer. A separate photos view lists the places by month and year and previews each one's photos.
+libbyli.me is Libby Li's personal travel photography portfolio. The home page is a realistic landscape of a sloping field under a blue sky, with hazy mountains and clouds: the words "photos", "illustrations" and "about me" stand on the crest of a field and hop up when hovered. "photos" opens the globe page, where a 3D globe marks the places she has photographed. Clicking a pin opens that place's photos directly: the pin's photo grows into the full-size viewer. A separate photos view lists the places by month and year and previews each one's photos.
 
 The main goal is for visitors to leave impressed by the build: the globe, the transitions and the interactions are evidence of engineering and design skill. The photos are the content that this craft serves.
 
@@ -31,7 +31,7 @@ The site is built by its owner, as a working demonstration of what she can engin
 
 ## Capabilities and Constraints
 
-- Currently a single static `index.html` (Tailwind via CDN, Three.js via an importmap, d3 and topojson for the land mask), served on GitHub Pages with a custom domain.
+- Static pages served on GitHub Pages with a custom domain: `index.html` (the hillside home page: `hill.js` paints the sky, clouds, mountains and field with a WebGL shader, once per resize, with a plain-gradient fallback without WebGL; `hill.css` sets the layers and type), `photos.html` (the globe and photos; Tailwind via CDN, Three.js via an importmap, d3 and topojson for the land mask), and `illustrations.html` and `about.html` (coming-soon placeholders on the same hillside). `firefly.js` draws the firefly cursor on every page.
 - The owner has confirmed that all of the following may change when there's a reason: the single-file structure, GitHub Pages hosting, the photo pipelines (build script, Darkroom, `places.js`), and the no-framework approach. Keep the libbyli.me domain.
 - The globe's relief comes from Mapzen/Terrarium elevation tiles. (The zoomed-in satellite landscape view was removed at the owner's request on 2026-11-18, so Esri imagery is no longer used.)
 - Local development: `node serve.mjs` serves the site at http://localhost:3000. `node screenshot.mjs <url> [label]` saves Puppeteer screenshots to `temporary screenshots/`.
@@ -39,13 +39,14 @@ The site is built by its owner, as a working demonstration of what she can engin
 ## Brand Commitments
 
 - Name: Libby Li. The wordmark reads "libbyli.jpg".
-- The owner set the direction for the current redesign: a 3D globe hero; frosted and ombre accents; a soft, relaxing, muted nature feel; a low-poly globe. (The realistic zoomed-in terrain view was later dropped in favour of opening the photos straight from a pin.) She also asked for a firefly cursor, a three-dot menu and a hero with no text.
+- The owner set the direction for the current redesign: a 3D globe hero; frosted and ombre accents; a soft, relaxing, muted nature feel; a low-poly globe. (The realistic zoomed-in terrain view was later dropped in favour of opening the photos straight from a pin.) She also asked for a firefly cursor, a three-dot menu and a globe hero with no text. On 2026-11-22 she added the hillside home page in front of it: an open slanted field with the section words standing on the horizon, a blend of a misty valley photo and a sunny illustrated hillside. Later that day she asked for it to look realistic, like two landscape photos she supplied (a hazy golden-hour valley and a blue sky over a sloping green field), with the words much smaller and off centre; they now sit small in the right third of the horizon.
 
 ## Evidence on Hand
 
 - Real photos in `photos/` and on Darkroom. The current galleries are Banff, Alberta and China (Spring 2026).
 - The China pin is a placeholder near Lake Tai (Suzhou), not a confirmed location.
 - There are no testimonials, clients, press or photography credits. Don't invent any.
+- There are no illustrations or about-me text yet; those pages are placeholders until Libby provides content. Don't write either for her.
 
 ## Product Principles
 
