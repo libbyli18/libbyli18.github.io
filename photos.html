@@ -285,7 +285,7 @@
      the photos rise in from the bottom (the script sequences this). The
      photos scene is the ordinary scrolling page. Phones keep one long page. */
   @media (min-width: 861px) {
-    html[data-scene] .hero { position: fixed; inset: 0; height: auto; min-height: 0; z-index: 1; }
+    html[data-scene] .hero { position: fixed; inset: 0; height: auto; min-height: 0; z-index: 0; }
     html[data-scene="globe"],
     html[data-scene^="to-"] { overflow: hidden; }
     /* Whichever scene is waiting its turn stays out of sight: the photos
@@ -304,7 +304,10 @@
     html[data-scene="to-photos-in"] #pins,
     html[data-scene="to-globe"] #pins { opacity: 0; }
     /* The photos sit in front of the globe. */
-    html[data-scene] .scene-photos { position: relative; z-index: 2; }
+    /* Above the globe by order alone, with no z-index: a stacking context
+       here would cut the photos off from the sky, and the scroll cue's
+       colour comes from blending with both. */
+    html[data-scene] .scene-photos { position: relative; }
     /* A browser scrollbar that takes up width would appear the moment the
        photos land and nudge the whole page left. The native bar is hidden
        here and a slim one drawn over the sky instead (below), so the page
@@ -587,6 +590,38 @@
   }
   .photo-card:hover .card-count,
   .photo-card:focus-visible .card-count { opacity: 1; }
+  /* Inside one gallery every photo has the same name, so it's said once,
+     in the corner (.gallery-title), not on each photo. */
+  .gallery-viewport.is-focused .card-count { display: none; }
+
+  /* The open gallery's name, bottom right, level with the Back button. */
+  .gallery-title {
+    position: fixed;
+    right: var(--s3);
+    bottom: var(--s3);
+    z-index: 6;
+    max-width: calc(100% - 2 * var(--s3) - 6rem); /* clear of back */
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: 400 1.5rem/2.6rem "Newsreader", Georgia, serif;
+    letter-spacing: -0.01em;
+    color: var(--slate);
+    text-shadow: 0 0 12px rgba(244, 247, 244, 0.9);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-out);
+  }
+  .gallery-viewport.is-focused ~ .gallery-title {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.5s;
+  }
+  @media (max-width: 860px) {
+    .gallery-title { right: var(--s2); font-size: 1.125rem; }
+  }
 
   /* Pinned to the corner of the gallery's window, not the track, which
      runs past every edge of the screen. */
@@ -595,14 +630,13 @@
     left: var(--s3);
     bottom: var(--s3);
     z-index: 1;
-    padding: 0.35rem 0.85rem;
-    border-radius: 999px;
-    background: var(--frost-bg);
-    border: 1px solid var(--frost-border);
-    -webkit-backdrop-filter: var(--frost-blur);
-    backdrop-filter: var(--frost-blur);
-    font-size: 0.875rem;
-    color: var(--slate);
+    /* Bare text that takes its colour from whatever is behind it: white
+       subtracted from the backdrop, so it reads dark over the pale sky and
+       light over a dark photo. */
+    font: 400 1.125rem/1 "Newsreader", Georgia, serif;
+    letter-spacing: -0.01em;
+    color: #fff;
+    mix-blend-mode: difference;
     white-space: nowrap;
     pointer-events: none;
     user-select: none;
@@ -611,43 +645,47 @@
   .scroll-cue.is-gone,
   .gallery-viewport.is-focused ~ .scroll-cue { opacity: 0; }
 
-  /* Back, from one gallery to all of them. It waits out of sight (still
-     laid out, so the photos know where to fly) until a gallery opens. */
+  /* back, from one gallery to all of them: just the word, bottom left,
+     set like the gallery's name in the opposite corner. It waits out of sight (still
+     laid out, so the photos know where to leave room) until a gallery opens. */
   .back-pill {
     position: fixed;
-    left: 50%;
+    /* The padding widens the tap area; the word itself lines up with the
+       corner margin. */
+    left: calc(var(--s3) - 0.75rem);
     bottom: var(--s3);
     z-index: 6;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.7rem 1.3rem 0.7rem 1rem;
-    border-radius: 999px;
-    border: 1px solid var(--frost-border);
-    /* More solid than the other frosted surfaces: photos pass under it. */
-    background: rgba(244, 247, 244, 0.86);
-    -webkit-backdrop-filter: var(--frost-blur);
-    backdrop-filter: var(--frost-blur);
-    box-shadow: var(--shadow-floating);
-    font: 500 0.9375rem/1 "Hanken Grotesk", sans-serif;
+    margin: 0;
+    padding: 0 0.75rem;
+    min-height: 2.75rem;
+    border: 0;
+    background: none;
+    font: 400 1.5rem/2.6rem "Newsreader", Georgia, serif;
+    letter-spacing: -0.01em;
     color: var(--slate);
+    text-shadow: 0 0 12px rgba(244, 247, 244, 0.9);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
     cursor: pointer;
     opacity: 0;
     visibility: hidden;
-    transform: translate(-50%, 18px) scale(0.94);
-    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-spring), visibility 0s 0.5s;
+    transform: translateY(8px);
+    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-out), color 0.2s, text-decoration-color 0.2s, visibility 0s 0.5s;
   }
   .back-pill.is-on {
     opacity: 1;
     visibility: visible;
-    transform: translate(-50%, 0);
-    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-spring), visibility 0s;
+    transform: none;
+    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-out), color 0.2s, text-decoration-color 0.2s, visibility 0s;
   }
-  .back-pill.is-on:hover { transform: translate(-50%, -2px); color: var(--glacier-deep); }
-  .back-pill.is-on:active { transform: translate(-50%, 0) scale(0.96); }
-  .back-pill:focus-visible { outline: 2px solid var(--glacier-deep); outline-offset: 3px; }
-  .back-pill svg { transition: transform 0.4s var(--ease-spring); }
-  .back-pill:hover svg { transform: translateX(-2px); }
+  .back-pill.is-on:hover { color: var(--glacier-deep); text-decoration-color: currentColor; }
+  .back-pill.is-on:active { transform: translateY(1px); opacity: 0.7; }
+  .back-pill:focus-visible { outline: 2px solid var(--glacier-deep); outline-offset: 2px; border-radius: 2px; }
+  @media (max-width: 860px) {
+    .back-pill { left: calc(var(--s2) - 0.75rem); font-size: 1.125rem; }
+  }
 
   /* Copies of the photos in flight between the globe's pins and their
      places in the gallery. Only transform, clip and opacity ever animate. */
@@ -835,11 +873,9 @@
         <div class="gallery-track" id="grid"></div>
       </div>
       <span class="scroll-cue" id="scroll-cue" aria-hidden="true">Scroll to discover</span>
-      <!-- Shown while one gallery is open; the other photos fly into it. -->
-      <button class="back-pill" id="gallery-back" type="button" aria-label="Back to all photos">
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>Back</span>
-      </button>
+      <p class="gallery-title" id="gallery-title"></p>
+      <!-- Shown while one gallery is open. -->
+      <button class="back-pill" id="gallery-back" type="button" aria-label="Back to all photos">back</button>
     </section>
   </main>
 
@@ -1153,6 +1189,7 @@
   // settle into the top-left corner and spread out from there (see
   // layoutFocus). Back plays it in reverse, returning to where you were.
   const backBtn = document.getElementById("gallery-back");
+  const galleryTitle = document.getElementById("gallery-title");
   // Slow in, slow out: opening and closing a gallery ease up to speed and
   // down again, so nothing starts with a jolt or stops short.
   const EASE_IN_OUT = "cubic-bezier(0.65, 0, 0.35, 1)";
@@ -1301,6 +1338,7 @@
     const before = gridCards.map((c) => c.getBoundingClientRect());
     focusTi = ti;
     const mine = new Set(focusIndices());
+    galleryTitle.textContent = trips[ti].name;
     galleryEl.classList.add("is-focused");
     layoutFocus();
     galleryEl.scrollLeft = 0;
@@ -1347,6 +1385,25 @@
     }
     if (!from || !mine.has(gridCards.indexOf(from))) backBtn.focus({ preventScroll: true });
     focusBusy = false;
+  }
+
+  // Straight into one gallery with no animation of its own, for when
+  // something else (a pin's photo flying down from the globe) carries the
+  // eye there. The gallery is laid out and the others hidden at once.
+  function focusNow(ti) {
+    panStop();
+    focusReturn = null;
+    focusScroll = { x: galleryEl.scrollLeft, y: galleryEl.scrollTop };
+    focusTi = ti;
+    const mine = new Set(focusIndices());
+    galleryTitle.textContent = trips[ti].name;
+    galleryEl.classList.add("is-focused");
+    gridCards.forEach((c, k) => { c.style.display = mine.has(k) ? "" : "none"; });
+    layoutFocus();
+    galleryEl.scrollLeft = 0;
+    galleryEl.scrollTop = 0;
+    panSync();
+    backBtn.classList.add("is-on");
   }
 
   async function exitGallery() {
@@ -1478,9 +1535,10 @@
     }
     // Every pin facing the viewer, paired with its place's first photo (the
     // one on the pin) in the gallery.
-    function featuredPairs() {
+    function featuredPairs(only = null) {
       const out = [];
       pinByTrip.forEach((pin, ti) => {
+        if (only !== null && ti !== only) return;
         if (pin.style.visibility === "hidden" || pin.style.opacity === "0") return;
         const k = gridPhotos.findIndex((g) => g.ti === ti && g.pi === 0);
         if (k >= 0) out.push({ thumb: pin.querySelector(".pin-thumb"), card: gridCards[k] });
@@ -1492,11 +1550,13 @@
       pairs.forEach(({ thumb }) => { thumb.style.visibility = ""; });
     }
     // To the gallery. Returns once every photo has landed.
-    function flyIn() {
-      const pairs = featuredPairs();
+    // With `only`, a single place's gallery is already open (see focusNow):
+    // just its pin's photo flies, and the rest of that gallery grows from it.
+    function flyIn(only = null) {
+      const pairs = featuredPairs(only);
       // Open the gallery on the place where the photos land, so the flight
       // ends somewhere you can see, not past an edge.
-      if (pairs.length) {
+      if (pairs.length && only === null) {
         const ax = pairs.reduce((a, { card }) => a + card.offsetLeft + card.offsetWidth / 2, 0) / pairs.length;
         const ay = pairs.reduce((a, { card }) => a + card.offsetTop + card.offsetHeight / 2, 0) / pairs.length;
         galleryEl.scrollLeft = clamp(ax - galleryEl.clientWidth / 2, 0, panMaxX());
@@ -1568,7 +1628,9 @@
       return pairs;
     }
 
-    async function go(target) {
+    // `gallery`: going to the photos from a pin, open straight into that
+    // place's gallery rather than all of them.
+    async function go(target, { gallery = null } = {}) {
       if (!active() || busy || scene === target) return;
       if (target === "globe" && galleryFocused()) return; // Back to all the photos first
       busy = true;
@@ -1579,6 +1641,7 @@
       const into = toPhotos ? photoEls : [heroEl];
       setScene(toPhotos ? "to-photos" : "to-globe");
       if (toPhotos) scrollTo({ top: 0, behavior: "instant" });
+      if (toPhotos && gallery !== null) focusNow(gallery);
       if (reduceMotion) {
         // No travel. To the photos: the globe fades out of the middle, then
         // the photos fade in with the globe faint in its corner. Back: the
@@ -1608,7 +1671,7 @@
         const away = getComputedStyle(root).getPropertyValue("--globe-away").trim();
         const awayOpacity = getComputedStyle(root).getPropertyValue("--globe-away-opacity").trim();
         idleUntil = Infinity; velocity = 0; // hold the globe still while its pins hand over their photos
-        const fly = flyIn();
+        const fly = flyIn(gallery);
         flown = fly.pairs;
         await Promise.all([
           play([pinsEl], [{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: "ease-out" }),
@@ -1647,7 +1710,7 @@
         flown = [];
       }
       if (!reduceMotion) idleUntil = performance.now() + 1500;
-      moveFocus(out, toPhotos ? galleryEl : document.getElementById("globe"));
+      moveFocus(out, toPhotos ? (galleryFocused() ? backBtn : galleryEl) : document.getElementById("globe"));
       busy = false;
       spent = true; // the rest of this gesture is used up
     }
@@ -2527,18 +2590,21 @@
     Object.assign(g.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
     return g; // not on the page yet: it goes in with its animation, so it is never seen out of place
   }
-  // A pin takes you down to the photos, then opens its place's gallery there.
+  // A pin opens its place's gallery. On a wide screen it goes straight
+  // there: the pin's photo flies down from the globe into the gallery's
+  // corner and the rest of that gallery grows out from it. On a phone the
+  // page scrolls down to the photos and the gallery opens there.
   async function openFromPin(ti, pinBtn) {
     if (lb.classList.contains("is-open") || focusBusy) return;
     pinBtn.classList.add("is-picked");
     if (galleryFocused()) await exitGallery();
-    if (scenes.active()) await scenes.go("photos");
+    if (scenes.active()) await scenes.go("photos", { gallery: ti });
     else {
       document.getElementById("trips").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
       await wait(reduceMotion ? 0 : 700);
     }
     pinBtn.classList.remove("is-picked");
-    enterGallery(ti, null);
+    if (!galleryFocused()) enterGallery(ti, null);
   }
   // A photo in the gallery flies up into the viewer the same way, and back
   // down into its spot when the viewer closes on it.
