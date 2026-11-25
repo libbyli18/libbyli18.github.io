@@ -608,7 +608,46 @@
     user-select: none;
     transition: opacity 0.5s var(--ease-out);
   }
-  .scroll-cue.is-gone { opacity: 0; }
+  .scroll-cue.is-gone,
+  .gallery-viewport.is-focused ~ .scroll-cue { opacity: 0; }
+
+  /* Back, from one gallery to all of them. It waits out of sight (still
+     laid out, so the photos know where to fly) until a gallery opens. */
+  .back-pill {
+    position: fixed;
+    left: 50%;
+    bottom: var(--s3);
+    z-index: 6;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 1.3rem 0.7rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--frost-border);
+    /* More solid than the other frosted surfaces: photos pass under it. */
+    background: rgba(244, 247, 244, 0.86);
+    -webkit-backdrop-filter: var(--frost-blur);
+    backdrop-filter: var(--frost-blur);
+    box-shadow: var(--shadow-floating);
+    font: 500 0.9375rem/1 "Hanken Grotesk", sans-serif;
+    color: var(--slate);
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 18px) scale(0.94);
+    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-spring), visibility 0s 0.5s;
+  }
+  .back-pill.is-on {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-spring), visibility 0s;
+  }
+  .back-pill.is-on:hover { transform: translate(-50%, -2px); color: var(--glacier-deep); }
+  .back-pill.is-on:active { transform: translate(-50%, 0) scale(0.96); }
+  .back-pill:focus-visible { outline: 2px solid var(--glacier-deep); outline-offset: 3px; }
+  .back-pill svg { transition: transform 0.4s var(--ease-spring); }
+  .back-pill:hover svg { transform: translateX(-2px); }
 
   /* Copies of the photos in flight between the globe's pins and their
      places in the gallery. Only transform, clip and opacity ever animate. */
@@ -707,6 +746,11 @@
   /* Opening: the photo settles into place as the veil fades in. */
   .lightbox:not(.is-open) .lb-strip img.is-current { transform: scale(0.97); }
   .lb-bottom { display: flex; justify-content: center; align-items: center; gap: var(--s2); }
+  /* One photo at a time: brought forward from the gallery, and clicking it
+     again sends it back. */
+  .lightbox .lb-bottom { visibility: hidden; }
+  .lb-strip { justify-content: center; }
+  .lb-strip img.is-current { cursor: zoom-out; }
   .lb-btn {
     width: 2.75rem; height: 2.75rem;
     display: grid; place-items: center;
@@ -791,6 +835,11 @@
         <div class="gallery-track" id="grid"></div>
       </div>
       <span class="scroll-cue" id="scroll-cue" aria-hidden="true">Scroll to discover</span>
+      <!-- Shown while one gallery is open; the other photos fly into it. -->
+      <button class="back-pill" id="gallery-back" type="button" aria-label="Back to all photos">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Back</span>
+      </button>
     </section>
   </main>
 
@@ -940,7 +989,9 @@
     cap.className = "card-count";
     cap.textContent = trip.name;
     b.append(img, cap);
-    b.addEventListener("click", () => openFromCard(ti, pi, b));
+    // From all the photos, a click opens that photo's gallery in place;
+    // inside a gallery, it brings just that photo forward.
+    b.addEventListener("click", () => (galleryFocused() ? openFromCard(ti, pi, b) : enterGallery(ti, b)));
     gridEl.appendChild(b);
     return b;
   });
@@ -988,7 +1039,7 @@
     gridEl.style.height = `${Math.max(0, y - gap)}px`;
   }
   layoutGrid();
-  new ResizeObserver(layoutGrid).observe(galleryEl);
+  new ResizeObserver(() => (galleryFocused() ? layoutFocus() : layoutGrid())).observe(galleryEl);
 
   // ---- 360° scrolling ----
   // Wheel input feeds a target position per axis, and a damped spring eases
@@ -1093,6 +1144,261 @@
     e.preventDefault();
     e.stopPropagation();
     panBy(step[0], step[1]);
+  });
+
+  // ================= One gallery at a time =================
+  // Clicking a photo keeps the view exactly as it is but narrows it to that
+  // photo's gallery: every other photo steps back and fades, in a wave that
+  // spreads out from the photo you clicked, and the gallery's own photos then
+  // settle into the top-left corner and spread out from there (see
+  // layoutFocus). Back plays it in reverse, returning to where you were.
+  const backBtn = document.getElementById("gallery-back");
+  // Slow in, slow out: opening and closing a gallery ease up to speed and
+  // down again, so nothing starts with a jolt or stops short.
+  const EASE_IN_OUT = "cubic-bezier(0.65, 0, 0.35, 1)";
+  const RECEDE = { scale: 0.94, push: 28, wave: 220 }; // how far back, how far apart (px), wave length (ms)
+  // Each other photo's offset away from the wave's origin, and its delay.
+  function recedePlan(ks, rects, origin) {
+    const far = Math.max(1, ...ks.map((k) => Math.hypot(mid(rects[k]).x - origin.x, mid(rects[k]).y - origin.y)));
+    return ks.map((k) => {
+      const m = mid(rects[k]), dx = m.x - origin.x, dy = m.y - origin.y, d = Math.hypot(dx, dy) || 1;
+      return { k, px: (dx / d) * RECEDE.push, py: (dy / d) * RECEDE.push, delay: (d / far) * RECEDE.wave };
+    });
+  }
+  let focusTi = null, focusBusy = false, focusReturn = null, focusScroll = { x: 0, y: 0 };
+  const galleryFocused = () => focusTi !== null;
+  const focusIndices = () => gridPhotos.map((g, k) => k).filter((k) => gridPhotos[k].ti === focusTi)
+    .sort((a, b) => gridPhotos[a].pi - gridPhotos[b].pi);
+  const mid = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+  const inView = (r) => r.width > 0 && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
+
+  // Justified rows of the given aspect ratios across width W at about R tall.
+  function justifyRows(aspects, W, R, gap) {
+    const rows = [];
+    const sum = (row) => row.reduce((a, i) => a + aspects[i], 0);
+    const fit = (row) => (W - gap * (row.length - 1)) / sum(row);
+    let row = [];
+    aspects.forEach((k, i) => {
+      row.push(i);
+      if (sum(row) * R + gap * (row.length - 1) < W) return;
+      const before = row.slice(0, -1);
+      if (before.length && Math.abs(fit(before) - R) < Math.abs(fit(row) - R)) { rows.push({ items: before, h: fit(before) }); row = [i]; }
+      else { rows.push({ items: row, h: fit(row) }); row = []; }
+    });
+    if (row.length) rows.push({ items: row, h: Math.min(R, fit(row)) });
+    return { rows, height: rows.reduce((a, r) => a + r.h, 0) + gap * Math.max(0, rows.length - 1) };
+  }
+
+  // The gallery starts in the top-left corner and grows out from it in
+  // arcs: each row is as wide as a quarter circle around the corner allows
+  // at its height, so whatever is nearer the corner fills first (the bottom
+  // left before the middle of the right side), and the circle is made just
+  // big enough to hold every photo. Photos keep their usual size while the
+  // set fits on screen above the Back button, shrinking to as little as
+  // half that size before anything goes off the screen; a gallery too big
+  // even then runs past the edges and pans like the full canvas.
+  function arcRows(aspects, R, rho, maxW, maxH, gap) {
+    const rows = [];
+    let i = 0, y = 0, widest = 0;
+    while (i < aspects.length) {
+      const ym = y + R / 2;
+      if (ym >= rho || y + R > maxH + 0.5) return null;
+      const target = Math.min(maxW, Math.sqrt(rho * rho - ym * ym));
+      const row = [i++];
+      let sum = aspects[row[0]];
+      // Take photos while they fit the arc at about R tall, then end the row
+      // wherever its height lands nearer R.
+      while (i < aspects.length && (sum + aspects[i]) * R + gap * row.length <= target) { sum += aspects[i]; row.push(i++); }
+      if (i < aspects.length) {
+        const hIn = (target - gap * row.length) / (sum + aspects[i]);
+        const hOut = (target - gap * (row.length - 1)) / sum;
+        if (hIn >= R * 0.92 && Math.abs(hIn - R) < Math.abs(hOut - R)) { sum += aspects[i]; row.push(i++); }
+      }
+      let h = (target - gap * (row.length - 1)) / sum;
+      // The outermost row isn't stretched to the arc; no row grows or
+      // shrinks far from R just to meet it.
+      if (i >= aspects.length) h = Math.min(h, R);
+      h = Math.max(R * 0.92, Math.min(h, R * 1.15));
+      const width = sum * h + gap * (row.length - 1);
+      if (width > maxW + 0.5) h = (maxW - gap * (row.length - 1)) / sum;
+      rows.push({ items: row, h });
+      widest = Math.max(widest, sum * h + gap * (row.length - 1));
+      y += h + gap;
+    }
+    if (y - gap > maxH + 0.5) return null;
+    return { rows, height: y - gap, width: widest };
+  }
+  function layoutFocus() {
+    const narrowScreen = innerWidth <= 860;
+    const R0 = narrowScreen ? 180 : 280, gap = narrowScreen ? 12 : 16;
+    const vw = galleryEl.clientWidth, vh = galleryEl.clientHeight;
+    const ks = focusIndices();
+    const aspects = ks.map((k) => gridPhotos[k].p.w / gridPhotos[k].p.h);
+    // Room below for the Back button, so the last row can sit clear of it.
+    const reserve = backBtn.offsetHeight + 2 * parseFloat(getComputedStyle(backBtn).bottom);
+    const room = vh - reserve;
+    // The smallest circle that holds them all, at this photo size.
+    const smallest = (R, maxW, maxH) => {
+      let hi = Number.isFinite(maxW) ? Math.hypot(maxW, maxH) + R
+        : Math.sqrt((aspects.reduce((a, k) => a + k, 0) * R * (R + gap) * 4) / Math.PI) * 2 + R;
+      if (!arcRows(aspects, R, hi, maxW, maxH, gap)) return null;
+      let lo = R / 2;
+      for (let n = 0; n < 30; n++) {
+        const m = (lo + hi) / 2;
+        if (arcRows(aspects, R, m, maxW, maxH, gap)) hi = m; else lo = m;
+      }
+      return arcRows(aspects, R, hi, maxW, maxH, gap);
+    };
+    // The photos may reach no further across the screen than they reach
+    // down it (as shares of each), so the bottom left fills before the
+    // middle of the right side: if they would, shrink them a step and try
+    // again. On a phone every row spans the screen anyway.
+    let layout = null, fallback = null;
+    for (let R = R0; R >= R0 / 2 && !layout; R -= 8) {
+      const next = smallest(R, vw, room);
+      if (!next) continue;
+      fallback = fallback || next;
+      if (narrowScreen || next.width / vw <= next.height / room + 0.12) layout = next;
+    }
+    layout = layout || fallback;
+    // Too many for the screen even at half size: let the arcs run on past
+    // the bottom and right edges.
+    if (!layout) layout = smallest(R0 / 2, Infinity, Infinity);
+    const W = layout.width;
+    let y = 0;
+    layout.rows.forEach((row) => {
+      let x = 0;
+      row.items.forEach((i) => {
+        const w = aspects[i] * row.h;
+        Object.assign(gridCards[ks[i]].style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${row.h}px` });
+        x += w + gap;
+      });
+      y += row.h + gap;
+    });
+    gridEl.style.width = `${Math.max(vw, W)}px`;
+    gridEl.style.height = `${Math.max(vh, layout.height + reserve)}px`;
+  }
+
+  // The narrow layout scrolls the page; bring the whole gallery on screen first.
+  async function galleryOnScreen() {
+    if (innerWidth > 860) return;
+    const r = galleryEl.getBoundingClientRect();
+    if (Math.abs(r.top) < 2) return;
+    scrollTo({ top: scrollY + r.top, behavior: reduceMotion ? "instant" : "smooth" });
+    await new Promise((res) => {
+      const t = setTimeout(res, 700);
+      addEventListener("scrollend", () => { clearTimeout(t); res(); }, { once: true });
+    });
+  }
+
+  async function enterGallery(ti, from) {
+    if (focusBusy || galleryFocused()) return;
+    focusBusy = true;
+    await galleryOnScreen();
+    panStop();
+    focusReturn = from;
+    focusScroll = { x: galleryEl.scrollLeft, y: galleryEl.scrollTop };
+    const before = gridCards.map((c) => c.getBoundingClientRect());
+    focusTi = ti;
+    const mine = new Set(focusIndices());
+    galleryEl.classList.add("is-focused");
+    layoutFocus();
+    galleryEl.scrollLeft = 0;
+    galleryEl.scrollTop = 0;
+    panSync();
+    backBtn.classList.add("is-on");
+    const after = gridCards.map((c) => c.getBoundingClientRect());
+    const fromK = from ? gridCards.indexOf(from) : -1;
+    const origin = fromK >= 0 ? mid(before[fromK]) : { x: innerWidth / 2, y: innerHeight / 2 };
+    const hide = (k) => { gridCards[k].style.display = "none"; };
+
+    if (reduceMotion) {
+      gridCards.forEach((c, k) => { if (!mine.has(k)) hide(k); });
+    } else {
+      const list = [];
+      // Everyone else steps back and fades, nearest the clicked photo first,
+      // each easing a little away from it so the gallery seems to part.
+      const others = gridCards.map((c, k) => k).filter((k) => !mine.has(k))
+        .filter((k) => inView(before[k]) || (hide(k), false));
+      recedePlan(others, before, origin).forEach(({ k, px, py, delay }) => {
+        const o = before[k], a = after[k];
+        const at = `translate(${o.left - a.left}px, ${o.top - a.top}px)`;
+        const anim = gridCards[k].animate([
+          { transform: `${at} scale(1)`, opacity: 1 },
+          { transform: `${at} translate(${px}px, ${py}px) scale(${RECEDE.scale})`, opacity: 0 },
+        ], { duration: 560, delay: delay * 1.25, easing: EASE_IN_OUT, fill: "both" });
+        anim.finished.then(() => hide(k), () => {});
+        list.push(anim);
+      });
+      // The gallery's own photos glide into their new places once the others
+      // have begun to clear, wherever on the canvas they started.
+      mine.forEach((k) => {
+        const o = before[k], a = after[k], c = gridCards[k];
+        c.style.zIndex = "1";
+        c.style.transformOrigin = "0 0";
+        list.push(c.animate([
+          { transform: `translate(${o.left - a.left}px, ${o.top - a.top}px) scale(${o.width / a.width}, ${o.height / a.height})` },
+          { transform: "none" },
+        ], { duration: 1150, delay: 200, easing: EASE_IN_OUT, fill: "both" }));
+      });
+      await Promise.all(list.map((a) => a.finished.catch(() => {})));
+      list.forEach((a) => a.cancel());
+      mine.forEach((k) => { gridCards[k].style.zIndex = ""; gridCards[k].style.transformOrigin = ""; });
+    }
+    if (!from || !mine.has(gridCards.indexOf(from))) backBtn.focus({ preventScroll: true });
+    focusBusy = false;
+  }
+
+  async function exitGallery() {
+    if (focusBusy || !galleryFocused() || lb.classList.contains("is-open")) return;
+    focusBusy = true;
+    panStop();
+    const mine = new Set(focusIndices());
+    const before = gridCards.map((c) => c.getBoundingClientRect());
+    gridCards.forEach((c) => { c.style.display = ""; });
+    focusTi = null;
+    galleryEl.classList.remove("is-focused");
+    layoutGrid();
+    galleryEl.scrollLeft = clamp(focusScroll.x, 0, panMaxX());
+    galleryEl.scrollTop = clamp(focusScroll.y, 0, panMaxY());
+    panSync();
+    const after = gridCards.map((c) => c.getBoundingClientRect());
+
+    if (!reduceMotion) {
+      const list = [];
+      mine.forEach((k) => {
+        const o = before[k], a = after[k], c = gridCards[k];
+        c.style.zIndex = "1";
+        c.style.transformOrigin = "0 0";
+        list.push(c.animate([
+          { transform: `translate(${o.left - a.left}px, ${o.top - a.top}px) scale(${o.width / a.width}, ${o.height / a.height})` },
+          { transform: "none" },
+        ], { duration: 1150, easing: EASE_IN_OUT, fill: "both" }));
+      });
+      // Everyone else comes forward again where they were, from the photo you
+      // first clicked outwards, closing in as they appear.
+      const back = focusReturn && focusReturn.isConnected ? gridCards.indexOf(focusReturn) : -1;
+      const origin = back >= 0 ? mid(after[back]) : { x: innerWidth / 2, y: innerHeight / 2 };
+      const others = gridCards.map((c, k) => k).filter((k) => !mine.has(k) && inView(after[k]));
+      recedePlan(others, after, origin).forEach(({ k, px, py, delay }) => {
+        list.push(gridCards[k].animate([
+          { transform: `translate(${px}px, ${py}px) scale(${RECEDE.scale})`, opacity: 0 },
+          { transform: "none", opacity: 1 },
+        ], { duration: 560, delay: 400 + delay * 1.25, easing: EASE_IN_OUT, fill: "both" }));
+      });
+      backBtn.classList.remove("is-on");
+      await Promise.all(list.map((a) => a.finished.catch(() => {})));
+      list.forEach((a) => a.cancel());
+      mine.forEach((k) => { gridCards[k].style.zIndex = ""; gridCards[k].style.transformOrigin = ""; });
+    }
+    backBtn.classList.remove("is-on");
+    if (focusReturn && focusReturn.isConnected) focusReturn.focus({ preventScroll: true });
+    else if (galleryEl.contains(document.activeElement) || document.activeElement === backBtn) galleryEl.focus({ preventScroll: true });
+    focusBusy = false;
+  }
+  backBtn.addEventListener("click", exitGallery);
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && galleryFocused() && !lb.classList.contains("is-open")) exitGallery();
   });
 
   // ================= Menu =================
@@ -1264,6 +1570,7 @@
 
     async function go(target) {
       if (!active() || busy || scene === target) return;
+      if (target === "globe" && galleryFocused()) return; // Back to all the photos first
       busy = true;
       const my = ++gen;
       const stale = () => my !== gen; // a resize to the phone layout cancelled this run
@@ -2156,15 +2463,17 @@
     document.getElementById("lb-name").textContent = trip.name;
     document.getElementById("lb-when").textContent = trip.when;
     strip.innerHTML = "";
-    trip.photos.forEach((p, j) => {
+    {
+      const p = trip.photos[pi];
       const im = document.createElement("img");
       im.src = p.src;
       im.width = p.w; im.height = p.h;
       im.decoding = "async";
-      im.alt = `${trip.name}, photo ${j + 1} of ${trip.photos.length}`;
-      im.addEventListener("click", () => setCurrent(j));
+      im.alt = `${trip.name}, photo ${pi + 1} of ${trip.photos.length}`;
+      im.addEventListener("click", closeLightbox); // a second click sends it back
       strip.appendChild(im);
-    });
+    }
+    pi = 0;
     lb.inert = false;
     lb.classList.add("is-open");
     document.body.style.overflow = "hidden";
@@ -2192,7 +2501,6 @@
   // as it travels to where the viewer shows it. Closing on that same first
   // photo plays it in reverse, back into the pin.
   const MORPH = { duration: 1150, easing: "cubic-bezier(0.45, 0, 0.15, 1)" }; // eases in and out, so the growth reads as one slow, even move
-  const PIN_PAUSE = 300; // the pin answers the click before the photo leaves it
   let lbFrom = null, fwd = null;
   const frame2 = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   // A photo laid out at `photoRect` that starts out looking exactly like a
@@ -2219,27 +2527,24 @@
     Object.assign(g.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
     return g; // not on the page yet: it goes in with its animation, so it is never seen out of place
   }
+  // A pin takes you down to the photos, then opens its place's gallery there.
   async function openFromPin(ti, pinBtn) {
-    if (lb.classList.contains("is-open")) return;
-    idleUntil = Infinity; // hold the globe still so the pin is there to return to
-    velocity = 0; wheelX = wheelY = 0;
-    const thumb = pinBtn.querySelector(".pin-thumb");
-    lbFrom = {
-      thumb, pi: 0,
-      shown: () => pinBtn.style.visibility !== "hidden" && pinBtn.style.opacity !== "0",
-      done: () => { idleUntil = performance.now() + 1500; },
-    };
-    if (reduceMotion) { openLightbox(ti, 0, pinBtn); return; }
+    if (lb.classList.contains("is-open") || focusBusy) return;
     pinBtn.classList.add("is-picked");
-    await wait(PIN_PAUSE);
-    if (lb.classList.contains("is-open")) { pinBtn.classList.remove("is-picked"); return; }
-    await morphOpen(ti, 0, pinBtn, thumb, () => pinBtn.classList.remove("is-picked"));
+    if (galleryFocused()) await exitGallery();
+    if (scenes.active()) await scenes.go("photos");
+    else {
+      document.getElementById("trips").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+      await wait(reduceMotion ? 0 : 700);
+    }
+    pinBtn.classList.remove("is-picked");
+    enterGallery(ti, null);
   }
   // A photo in the gallery flies up into the viewer the same way, and back
   // down into its spot when the viewer closes on it.
   async function openFromCard(ti, pi, card) {
     if (lb.classList.contains("is-open")) return;
-    lbFrom = { thumb: card, pi, shown: () => { const r = card.getBoundingClientRect(); return r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight; } };
+    lbFrom = { thumb: card, pi: 0, shown: () => { const r = card.getBoundingClientRect(); return r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight; } };
     if (reduceMotion) { openLightbox(ti, pi, card); return; }
     await morphOpen(ti, pi, card, card, () => {});
   }
